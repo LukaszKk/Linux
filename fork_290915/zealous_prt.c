@@ -28,20 +28,21 @@ void push( struct Queue** queue, siginfo_t info );				//dodaj na kolejnym elemen
 void pop( struct Queue** queue );						//usun kolejny element
 void freeQueue( struct Queue** queue );
 
-void SaHandler( int sig_num, siginfo_t* info, void * v );
-void printKilled( siginfo_t info );
+void SaHandler( int sig_num );
+void printKilled();
 
 struct Queue* queue;
 volatile int count = 0;
 volatile int stopped = 0;
 volatile int flag = 0;
+/*volatile*/ int pidg = 0;
 
 int main( int argc, char* argv[] )
 {
 	if( InputCheck( argc, argv ) )
 		return 1;
 	float e = exp( 1 );
-	int pidg = strtol( argv[1], NULL, 10 );					//pid grupy
+	pidg = strtol( argv[1], NULL, 10 );					//pid grupy
 	count = strtol( argv[2], NULL, 10 );					//ilosc potomkow
 	GetOpt( &e, argc, argv );						//wczytaj param
 	
@@ -86,8 +87,8 @@ int main( int argc, char* argv[] )
 	}
 	
 	struct sigaction sa;
-	sa.sa_sigaction = &SaHandler;
-	sa.sa_flags = SA_SIGINFO;
+	sa.sa_handler = &SaHandler;
+	sa.sa_flags = SA_RESTART;
 	if( sigaction( SIGCHLD, &sa, NULL ) != 0 )				//zmiana SIGCHLD
 		return -1;
 
@@ -108,20 +109,14 @@ int main( int argc, char* argv[] )
 	{
 		//if( killpg( SIGCONT, pidg ) != 0 )				//budzenie
 			//return -1;
-		Children( &pidg, count );						//stworz potomkow, funkcja opcjonalna
+		Children( &pidg, count );					//stworz potomkow, funkcja opcjonalna
 		while( 1 )
 		{
-			//if( sigwaitinfo( &set, &info ) == -1 )			//pasywne oczekiwanie
+			//if( sigwaitinfo( &set, &info ) != 0 )			//pasywne oczekiwanie
 			//	return -1;
-			if( waitid( P_PGID, pidg, &info, WEXITED | WSTOPPED | WNOHANG ) == 0 )
-			{
-				printf( "I am here\n" );
-				if( info.si_status == CLD_EXITED )		//drukowanie nekrologu
-				{
-					printKilled( info );
-				}	
-			}
-			if( count == 0 )					//nie ma zywych, koniec programu
+			printf( "I am here\n" );
+			printKilled();						//drukowanie nekrologow
+			if( count <= 0 )					//nie ma zywych, koniec programu
 			{
 				freeQueue( &queue );
 				return 0;
@@ -168,7 +163,7 @@ void Children( int* pidg, int count )
 		if( (pid=fork()) == 0 )
 		{
 			setpgid( pid, *pidg );
-			exit( 0 );
+			exit( 1 );
 		}
 		*pidg = getpgid(pid);
 	}
@@ -228,26 +223,35 @@ void freeQueue( struct Queue** queue )
 }
 
 
-void SaHandler( int sig_num, siginfo_t* info, void * v )
+void SaHandler( int sig_num )
 {
-	struct Queue* wsk = queue;
-	while( wsk->next != NULL )
-		wsk = wsk->next;
-	push( &wsk, *info );
-	switch( sig_num )
+	siginfo_t info;
+	while( waitid( P_PGID, pidg, &info, WEXITED | WSTOPPED | WNOHANG ) == 0 )
 	{
-		case SIGTERM: count -= 1; info->si_code = CLD_EXITED; break;
+		struct Queue* wsk = queue;
+		while( wsk->next != NULL )
+			wsk = wsk->next;
+		switch( sig_num )
+		{
+		case SIGTERM: count -= 1; info.si_code = CLD_EXITED; break;
 		case SIGSTOP: stopped += 1; break;
+		}
+		push( &wsk, info );
 	}
-	if( stopped == count )
+	if( stopped >= count )
 		flag = 1;
 }
 
-void printKilled( siginfo_t info )
+void printKilled()
 {
 	struct Queue* wsk = queue;
-	while( (info.si_pid != wsk->info.si_pid)  && (wsk->next != NULL) )
+	while( wsk->next != NULL )
+	{
+		if( wsk->info.si_code == CLD_EXITED )
+		{
+			printf( "pid: %d, status: %d, reason: %s\n", wsk->info.si_pid, wsk->info.si_status, strsignal(wsk->info.si_code) );
+			pop( &wsk );
+		}
 		wsk = wsk->next;
-	printf( "pid: %d, status: %d, reason: %s\n", wsk->info.si_pid, wsk->info.si_status, strsignal(wsk->info.si_code) );
-	pop( &wsk );
+	}
 }
