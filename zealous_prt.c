@@ -12,16 +12,11 @@
 int InputCheck( int argc, char* argv[] );
 void GetOpt( float* e, int argc, char* argv[] );
 
-void Children( int* pidg, int count );
-
 struct Queue									//globalna kolejka
 {
 	siginfo_t info;
 	struct Queue* next;
 };
-
-
-void printQueue( struct Queue* queue );
 
 struct Queue* allocMem();							//alokacja pamieci na elemencie
 void push( struct Queue** queue, siginfo_t info );				//dodaj na kolejnym elemencie
@@ -35,7 +30,7 @@ struct Queue* queue;
 volatile int count = 0;
 volatile int stopped = 0;
 volatile int flag = 0;
-/*volatile*/ int pidg = 0;
+volatile int pidg = 0;
 
 int main( int argc, char* argv[] )
 {
@@ -46,11 +41,6 @@ int main( int argc, char* argv[] )
 	count = strtol( argv[2], NULL, 10 );					//ilosc potomkow
 	GetOpt( &e, argc, argv );						//wczytaj param	
 	queue = allocMem();							//tworzenie kolejki
-	
-	
-	//Children( &pidg, count );
-	
-
 	siginfo_t info;
 	int i = count;
 	while( i > 0 )
@@ -68,7 +58,6 @@ int main( int argc, char* argv[] )
 	struct timespec ts;
 	ts.tv_sec = e/(M_PI*M_PI);
 	ts.tv_nsec = 0;
-	Children( &pidg, count );
 	while( 1 )
 	{
 		if( killpg( SIGCONT, pidg ) != 0 )				//budzenie
@@ -87,7 +76,6 @@ int main( int argc, char* argv[] )
 				}
 				if( stopped <= count )					//nie ma aktywnych
 				{
-					flag = 0;
 					if(nanosleep( &ts, 0 ) != 0)			//to spij
 						return -1;
 					flag = 0;
@@ -122,39 +110,6 @@ void GetOpt( float* e, int argc, char* argv[] )
 	}
 }
 
-
-
-void Children( int* pidg, int count )
-{
-	pid_t pid;
-	int f = 0;
-	for( int i = 0; i < count; i++ )
-	{
-		if( (pid=fork()) == 0 )
-		{
-			if( f == 0 )
-				setpgid( pid, pid );
-			setpgid( pid, *pidg );
-			exit( 1 );
-		}
-		f = 1;
-		*pidg = getpgid(pid);
-	}
-}
-
-
-
-void printQueue( struct Queue* queue )
-{
-	struct Queue* wsk = queue->next;
-	while( wsk->next != NULL )
-	{
-		printf( "%d\t", wsk->info.si_pid );
-		wsk = wsk->next;
-	}
-	printf( "%d\n", wsk->info.si_pid );
-}
-
 struct Queue* allocMem()							//alokacja pamieci na elemencie
 {
 	struct Queue* wsk = (struct Queue*)malloc( sizeof(struct Queue) );
@@ -180,10 +135,7 @@ void pop( struct Queue** queue )						//usun kolejny element
 		return;
 	struct Queue* wsk = (*queue)->next;
 	free( (*queue)->next );
-	if( wsk->next != NULL )
-		(*queue)->next = wsk->next;
-	else
-		(*queue)->next = NULL;
+	(*queue)->next = wsk->next;
 }
 
 void freeQueue( struct Queue** queue )
@@ -201,9 +153,9 @@ void freeQueue( struct Queue** queue )
 
 void SaHandler( int sig_num )
 {
-	siginfo_t info;
 	if( flag == 0 )
 	{
+		siginfo_t info;
 		while( waitid( P_PGID, pidg, &info, WEXITED | WSTOPPED | WNOHANG ) == 0 )
 		{
 			struct Queue* wsk = queue;
@@ -215,11 +167,11 @@ void SaHandler( int sig_num )
 			case CLD_STOPPED: stopped += 1; break;
 			}
 			push( &wsk, info );
+			if( stopped >= count )
+				flag = 1;
 		}
 		flag = 1;
 	}
-	//if( stopped >= count )
-	//	flag = 1;
 }
 
 void printKilled()
