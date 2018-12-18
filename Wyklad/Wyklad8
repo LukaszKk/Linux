@@ -1,0 +1,180 @@
+Do ogarniecia:
+	-programowanie z uzyciem socketow
+	-domena AF_UNIX
+
+
+POTOKI
+
+maja wbudowane mechanizmy synchronizacji
+lepsze od sygnalow bo bezpieczniejsze
+Potoki anonimowe: pipe
+	-tworzone na biezaco
+	-przekazywanie deskryptorow miedzy procesami
+Potoki nazwane: pliki FIFO
+	-wystepuja w systemie (trzeba podac sciezke do takiego pliku)
+	-obowiazuja prawa dostepu
+Potoki:
+	-komunikacja jednokierunkowa
+	-transmisja strumieniowa (mozliwosc przesylanie pakietoweg, wrzucam pakiet, odczytuje caly pakiet)
+	-nie mozna sie cofac, nie mozna dwa razy wejsc do tego samego strumienia
+	-mechanizmy synchrinizujace nadawce i odbiorce (jezeli odbiorca chce cos przeczytac a potok jest pusty to odbiorca bedzie czekac
+	-ograniczona pojemnosc:
+		-mozliwosc zapelnienia bufora
+		funckja write zwraca ile zapisala bajtow (mozna zapisac i sprawdzic czy zapisala calosc, jesli to bylo zapelnieni i trzeba powtorzyc)
+	-gwarancja atomowosci zapisu
+		-ronolegle zapisy nie beda przeplatane (gdy jest wiele nadawcow na raz)
+		-ograniczenie na ilosc danych
+Potoki nazwane (pliki FIFO):
+	-open( ..., O_RDONLY ) - odbiorca
+	-open( ..., O_WRONLY ) - nadawca
+	-nie zakonczy sie instrukcja open jezeli z drugiej strony nie bedzie otwarte
+	-open( ..., O_RDONLY ) + O_NONBLOCK - tu sie nie zatrzyma
+	-nie da sie! open( ..., O_WRONLY ) + O_NONBLOCK = errno=ENXIO
+	-read( ..., K ) - jezeli probujemy odczytac z pustego bufora to bedzie zatrzymanie EOF, w trybie blokujacym
+	-wite( ..., M ) - jezeli sprobujemy zapisac wiecej niz jest miejsca to bedzie znak stop SIGPIPE erno=EPIPE, domyslnie zabija proces, ale mozna zmienic dzialanie, w trybie blokujacym
+	-read( ..., K ) + O_NONBLOCK - errno=EAGAIN - dla pustego bufora
+	-write( ..., M ) + O_NONBLOCK - errno=EAGAIN - dla pelnego bufora
+	-jezeli nie ma czytelnikow to ci ktorzy beda probowali pisac dostana SIGPIPE
+	-zeby byl serwer czyli caly czas dzialac ma potok, niezaleznie czy sa czytelnicy to moze nadawca otworzyc sobie w 2 tybach, read/write
+	-read + NONBLOCK pozniej write zwykly moze byc lub rowniez + NONBLOCK
+	-open( ..., O_RDWR ) - serwer
+
+Potoki anonimowe:
+	-potok jest tworzony i otwierany przez jeden proces
+	-deskrytpory musza byc przekazane do innego procesu
+	-mechanizmy:
+		-dziedziczenie deskryptorow poprzez fork()
+		-przekazywanie przez gniazda (AF_UNIX)
+	-tworzenie i otwieranieL
+		-int pipe( int fd[2] )
+			-fd[0] - strona do czytania
+			-fd[1] - strona do pisania
+	-uwagi:
+		-potok jest otwierany zawsze w trybie blokujacym
+		-zmiana trybu poprzez fcntl(...)
+			-albo uzycie pipe2
+	-po forku trzeba zamknac te ktore sie nie uzywa (close) zeby byla komunikacja pomiedzy procesami, bo po uzyciu forka sa 4 polaczenia, a maja byc 2
+	-dostepne flagi:
+		-O_CLOEXEC
+		-O_NONBLOCK
+		-O_DIRECT (tryb pakietowy)
+	
+
+Alternatywne modele I/O
+
+Operacje I/O:
+	1. oczekiwanie na gotowosc strumienia
+	2. rozpoczecie operacji
+	3. oczekaiwanie na zakonczenie operacji
+	4. rezultat: sukces lub porazka
+	
+	-model standardowy:
+		-pela synchronicznosc:
+			oczekiwanie na:
+				-gotowosc strumienia do dzialania
+				-zakonczenie rozpoczetej operacji
+		-przypadek szczegolny - pliki regularne:
+			-systemowe buforowanie opearacji zapisu/odczytu
+	-modele alternatywne:
+		-tryb nieblokujacy
+		-multipleksacja I/O
+		-POSIX AIO
+		
+Tryb blokujacy vs nieblokujacy:
+	-brak gotowosci - tryb blokujacy - przerwanie
+	-brak gotowosci - tryb nieblokujacy 
+		-blad wykonania - errno=EAGAIN albo errno=EWOULDBLOCK
+	-wybor trybu:
+		-flaga O_NONBLOCK
+			-open(...)
+			-fcntl(F_SETFL, ...|O_NONBLOCK )
+			-pipe2(...)
+Problem:
+	-wiele otwartych plikow
+	-rownoczesne nasluchiwanie na kazdym z nich
+Podejscie:
+	1.otwrcie plikow w trybie nieblokujacym
+	2.petla: przegladanie stanu i obsluga
+	Wady:
+		-aktywna petla: duze zuzycie procesora
+		-spowalnianie(*sleep)
+Rozwiazanie:
+	-multipleksacja I/O
+		-jednoczesne oczekiwanie na wielu deskryptorach
+		-zwrocenie deskrytorow, ktore sa gotowe do dzialania (nie spowoduje zablokowania operacji I/O)
+Narzedzia:
+	-select, poll:
+		-funkcje standardowe, wymahane przez SUSv3
+		-pochodzace z rozncyh galezi (BSD, System V)
+		-identyczne zasady dzialania, rozne struktury danych
+	-epoll:
+		-rodzina funkcji: epoll_create, epoll_ctl, ...
+		-wszystkie mozliwosci funkcji select, poll
+		-dodatkowo: reagowanie na zmiane stanu (jak AIO)
+		-rozwiazanie duzo wydajniejsze, ale mniej wygodne
+	-pselect, ppoll, epoll_pwait
+		.mozliwosc blokowanie sygnalow (sigmask)
+Multipleksacja - schemat stosowania:
+	-rejestracja deskruptorow
+	-oczekiwanie (w trybie blokujacym)
+	-obsluga deskryptorow gotowych do dzialani
+	-rejestracja obserwowanych deskryptorow
+		-otwarte pliki
+			-dowolnego type (regularne, specjalne, urzadzenia, ...)
+		-kategorie:
+			-odczyt, zapis, specjalne
+		-tryb blokujacy/nieblokujacy
+	-oczekiwanie (w trybie blokujacy)
+		-ustanowienie maksymalnego czasu oczekiwania
+		-w zaleznosci od funkcji:
+			-u-sekudny
+			-milisekundy
+			-nanosekundy
+	-obsluga deskryptorow gotowych do dzialania:
+		-dla kazdej kategorii zwracany jest osobny zbior
+		-wyniki trzeba przegladac (petla)
+		-zwrocone deskryptory wykonaja operacje I/O w sposob nieblokujacy
+	
+int select( ... ):
+	-fd_set - wektor flag, ustalonego rozmiaru
+	-nfds - maksymalna ilosc deskryptorow do sprawdzenia
+	-zbiory dekryptorow
+		readfds, writefds, exceptfds
+	-operacje:
+		-void FD_ZERO(fd_set *fdset);
+		-void FD_SET(
+		-void FD_CLR(
+		-int FD_ISSET(
+	-przyklad:
+		fd_set rd, wr, ex;
+		int n = open(
+		
+		FD_ZERO(rd);FD_ZERO(wr);D_ZERO(ex);
+		
+
+		struct timeval;
+		-(0L,0L) - bez blokowania
+		-NULL - bez gornej granicy czekania (czekanie w nieskonczonosc)
+int poll( ... ):
+	-struct pollfd fds[N] - wektor struktur opisujacy deskryptowy
+	
+	struct pollfd
+	-wazniejsze flagi:
+		-wejscie:
+			-POLLIN, POLLPRI, POLLRDHUP
+		-wyjscie:
+			-POLLOUT
+		-odpowiedzi:
+			-POLLERR, POLLHUP, POLLNVAL
+	struct pollfd fds[5];
+	fds[0] = { 0, POLLIN, 0 };
+	fds[3] = { n, POLLIN | POLLOUT, 0 };
+	fds[4] = { -1, 0, 0 }; - ostatni el ma byc ignorowany
+	
+	-czas oczekiwania
+		-0 - bez blokowania
+		--1 bez gornej granicy czekania (lub jakakolwiek ujemna)
+epoll:
+	...
+	
+
