@@ -1,0 +1,17 @@
+/*
+jeden param, sciezka do pliku fifo, dodatkowo: powinien sprawdzic czy plik jest fifo
+otwiera fifo do odczytu, w trybie blokujacym i czeka
+gdy ktos z drugiej strony otworzy do pisania to przechodzi w tryb nieblokujacy
+multipleksacja:
+z pliku odczytuje po 1B i wpisuje do bufora
+bufor ma wielkosc 15znakow
+po wypelnieniu bufora wypisisuje go na ekran i czyta dalej
+jezeli oczekiwanie na kolejny znak przekroczy 2,75s to na stderr wylatuje komunikat oraz niepelny bufor jest wypisywany na ekran
+jezeli bufor byl pusty to wypisuje drugi komunikat
+jezeli druga strona zamknie fifo (skonczy sie zawartosc) to program znowu wraca do trybu blokujacego i czeka az go ktos znowu otworzy
+*/
+
+/*
+programy do pisania
+w C
+*/

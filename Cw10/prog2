@@ -1,0 +1,21 @@
+/*
+przyjmuje 3 liczby float
+	1 to dolna granica
+	2 to gorna granica
+	3 to krok
+w odstepach czasu delta T, mierzonych jak najdokladniej ma byc wypisywany na ekran znak
+wartosc dT to jest srednia arytmetyczn az granic
+program obsluguje 2 sygnaly USR1, USR2
+kazdy z nich powoduje zmiane wartosci dT o krok, USR1 zmniejsza o krok, USR2 zwieksza
+jezeli dT wyjdzie po za granice dolna/gorna to jest wypisywany kom i przestaja byc wypisywane znaczki
+znowu w granice to sie znowu wyswietlaja
+sygnal SIGALARM powoduje wyswietlenie wszystkich wartosci dT, gorna, dolna, krok
+inny program wysyla sygnaly (drugi terminal i kill, raczej skrypcik w bashu odpada)
+
+sigaction
+write
+wypisywanie bledow: flaga i fprintf
+spanie + czekanie: nanosleep, nanosleep jest przerywany przez sygnaly, wiec trzeba dospac
+	1)sprawdzic czy nanosleep zwrocil cos i w drugim param jest ile zostalo do spania
+	2)jedna z wersji nanosleep przyjmuje flage ABSTIME, jezeli za krotko spalismy to spimy jeszcze raz z tymi samymi param i ta sama flaga
+*/

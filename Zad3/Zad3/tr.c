@@ -16,6 +16,7 @@ int main( int argc, char* argv[] )
 	char c;
 	char* sc;
 	int flag = 0;
+	
 	while( read( STDIN_FILENO, &c, 1 ) > 0 )
 	{
 		//if c in argv[1] then write
@@ -32,7 +33,6 @@ int main( int argc, char* argv[] )
 			write( STDOUT_FILENO, &c, 1 );
 		flag = 0;
 	}
-
 
 	return 0;
 }
