@@ -17,6 +17,8 @@ void errExit( char * s )
 
 void HandlerUsr( int, siginfo_t*, void* );
 void HandlerChld( int, siginfo_t*, void* );
+volatile int signal_pid = 0;
+volatile int signal_count = 0;
 
 int main( int argc, char* argv[] )
 {
@@ -110,7 +112,8 @@ int main( int argc, char* argv[] )
 
 	while( 1 )
 	{
-		
+		if( signal_count == allChld )
+			break;
 	}
 
 	return 0;
@@ -119,6 +122,7 @@ int main( int argc, char* argv[] )
 
 void HandlerUsr( int signum, siginfo_t * siginfo, void * p )
 {
+	signal_pid = siginfo->si_pid;
 	char buf[50] = { "" };
 	char buf2[50] = { "" };
 	sprintf( buf2, "%d", siginfo->si_pid );
@@ -131,16 +135,19 @@ void HandlerUsr( int signum, siginfo_t * siginfo, void * p )
 
 void HandlerChld( int signum, siginfo_t * siginfo, void* p )
 {
+	signal_count++;
 	char buf[50] = { "" };
 	sprintf( buf, "%d", siginfo->si_pid );
 	strcat( buf, ": killed\n" );
 	if( write( STDOUT_FILENO, buf, strlen(buf) ) == -1 )
 		errExit( "write_err" );
-	/*
-	char buf2[50] = { "" };
-	sprintf( buf2, "%d", siginfo->si_pid );
-	strcat( buf2, ": Medal Darwina\n" );
-	if( write( STDOUT_FILENO, buf2, strlen(buf2) ) == -1 )
-		errExit( "write_err" );
-	*/
+	
+	if( signal_pid == siginfo->si_pid )
+	{
+		char buf2[50] = { "" };
+		sprintf( buf2, "%d", siginfo->si_pid );
+		strcat( buf2, ": Medal Darwina\n" );
+		if( write( STDOUT_FILENO, buf2, strlen(buf2) ) == -1 )
+			errExit( "write_err" );
+	}
 }
