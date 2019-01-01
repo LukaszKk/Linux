@@ -17,7 +17,13 @@ void errExit( char * s )
 void Handler( int );
 
 int main( int argc, char* argv[] )
-{
+{	
+	//sigusr2 - do nothing
+	struct sigaction act2;
+	act2.sa_handler = &Handler;
+	if( sigaction( SIGUSR2, &act2, NULL ) == -1 )
+		errExit( "sigaction_err" );
+
 	//input check
 	if( argc != 2 && argc != 4 )
 	{
@@ -52,18 +58,9 @@ int main( int argc, char* argv[] )
 	
 	//sigaction struct
 	struct sigaction act;
-	struct sigaction act2;
 	act.sa_handler = SIG_DFL;
-	act2.sa_handler = &Handler;
 
-	//open urandom
-	int randomData = open( "/dev/urandom", O_RDONLY );
-	if( randomData == -1 )
-		errExit( "open_err" );
-	
 	//wait for signal
-	if( sigaction( SIGUSR2, &act2, NULL ) == -1 )
-		errExit( "sigaction_err" );
 	sigset_t set;
 	sigemptyset( &set );
 	sigaddset( &set, SIGUSR2 );
@@ -77,14 +74,17 @@ int main( int argc, char* argv[] )
 		pid_t pid = getpid();
 		char buf[50];
 		sprintf( buf, "%d: ", pid );
+		strcat( buf, slogan );
+		strcat( buf, "\n" );
+		//write slogan
 		if( write( STDOUT_FILENO, buf, strlen(buf) ) == -1 )
 			errExit( "write_err" );
-		//write slogan
-		if( write( STDOUT_FILENO, slogan, strlen(slogan) ) == -1 )
-			errExit( "write_err" );
-		if( write( STDOUT_FILENO, "\n", 1 ) == -1 )
-			errExit( "write_err" );
 		
+		//open urandom
+		int randomData = open( "/dev/urandom", O_RDONLY );
+		if( randomData == -1 )
+			errExit( "open_err" );
+
 		//change signal action
 		int random_data;
 		if( read(randomData, &random_data, sizeof(random_data) ) == -1 )
@@ -101,6 +101,11 @@ int main( int argc, char* argv[] )
 		pid_t pgid = getpgid(pid);
 		if( read(randomData, &random_data, sizeof(random_data) ) == -1 )
 			errExit( "read_err" );
+		
+		//close urandom
+		if( close( randomData ) == -1 )
+			errExit( "close_err" );
+	
 		random_data = abs(random_data) % 10;
 		if( !random_data )
 		{
@@ -115,11 +120,7 @@ int main( int argc, char* argv[] )
 			req.tv_nsec = rem.tv_nsec;
 		}
 	}
-
-	//close urandom
-	if( close( randomData ) == -1 )
-		errExit( "close_err" );
-			
+		
 	return 0;
 }
 
