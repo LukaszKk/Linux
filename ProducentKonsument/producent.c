@@ -175,7 +175,7 @@ int main( int argc, char* argv[] )
 
 void InputCheck( int argc, char* argv[], char** r, double* t, int* port, char* addr )
 {
-	if( argc != 6 )
+	if( argc < 4 || argc > 6 )
 	{
 		printf( "Usage: %s -r <path> -t <val> [<addr>:]port\n", argv[0] );
 		errExit( "Input Error" );
