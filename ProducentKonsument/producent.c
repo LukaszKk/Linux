@@ -4,8 +4,16 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <time.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <sys/epoll.h>
+#include <fcntl.h>
 
 #define MAX 1250000
+#define MAX_EVENTS 10
+#define MAXBUF 1024
 
 void errExit( char * mes )
 {
@@ -13,22 +21,55 @@ void errExit( char * mes )
 	exit( EXIT_FAILURE );
 }
 
-char* InputCheck( int argc, char* argv[], char** r, double* t, int* port );
+void InputCheck( int argc, char* argv[], char** r, double* t, int* port, char* addr );
+
 timer_t create_timer( double t );
 void handler( int signal );
 volatile int generate_data = 0;
 
+struct Buffer
+{
+	char data[MAX];
+	unsigned int head;
+	unsigned int tail;
+};
+int isEmpty( unsigned int head, unsigned int tail );
+int isFull( unsigned int head, unsigned int tail );
+void writeBuf( struct Buffer* buffer, char data );
+char readBuf( struct Buffer* buffer );
+
+int makeSocket( int port, char addr[16] );
+int setnonblocking(int fd);
+
+//===================================================================
+//===================================================================
 
 int main( int argc, char* argv[] )
 {
 	char* r;
 	double t;
 	int port;
-	char* addr;
-	addr = InputCheck( argc, argv, &r, &t, &port );
+	char addr[16] = { '\0' };
+	InputCheck( argc, argv, &r, &t, &port, addr );
+
+	struct Buffer magazine;
+	magazine.head = 0;
+	magazine.tail = 0;
+
+	int sock_fd = makeSocket( port, addr );
 	
-	char* magazine = malloc( MAX );
-	int magindex = 0;
+	struct sockaddr_in B;
+	socklen_t Blen = sizeof(struct sockaddr_in);
+	
+	int epoll_fd = epoll_create1(0);
+	if( epoll_fd == -1 )
+		errExit( "epoll create error" );
+	struct epoll_event ev, events[MAX_EVENTS];
+	int nfds;
+	ev.events = EPOLLIN;
+	ev.data.fd = sock_fd;
+	if( epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sock_fd, &ev) == -1 )
+		errExit( "epoll_ctl error" );
 
 	struct sigaction sa;
 	sa.sa_handler = handler;
@@ -40,36 +81,64 @@ int main( int argc, char* argv[] )
 	int i = 65;
 	while( 1 )
 	{
-		if( generate_data )
+		if( !isFull(magazine.head, magazine.tail) && generate_data )
 		{
-			for( int j = 0; j < 640; j++, magindex++ )
-			{
-				if( magindex >= MAX-1 )
-					break;
-				magazine[magindex] = i;
-			}
-			if( magindex < MAX-1 )
-				magindex++;
+			for( int j = 0; j < 640; j++ )
+				writeBuf( &magazine, i );
 			i++;
 			generate_data = 0;
 		}
+	
+		//
+		nfds = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
+		if( nfds == -1 )
+			errExit( "epoll_wait error" );
+		for( int n = 0; n < nfds; n++ )
+		{
+			if( events[n].data.fd == sock_fd )
+			{
+				int new_fd = accept( sock_fd, (struct sockaddr*)&B, &Blen );
+				if( new_fd == -1 )
+					errExit( "accept error" );
+				setnonblocking(new_fd);
+				ev.events = EPOLLIN | EPOLLET;
+				ev.data.fd = new_fd;
+				if( epoll_ctl(epoll_fd, EPOLL_CTL_ADD, new_fd, &ev) == -1 )
+					errExit( "epoll_ctl_new error" );
+
+
+			}
+		}
+
 
 		if( i == 122 ) i = 64;
 		else if( i == 90 ) i = 96;
-		if( magindex >= 640*3 )
+		//development
+		if( i > 68 )
 			break;
 	}
-	
+
+	write( 1, magazine.data, strlen(magazine.data) );
+
+	if( close( sock_fd ) == -1 )
+		errExit( "close socket error" );
+
+	/*
+	if( close( new_fd ) == -1 )
+		errExit( "close socket error" );
+	*/
 
 	if( timer_delete( timerid ) == -1 )
 		errExit( "timer_delete error" );
-	free( magazine );
 
 	return 0;
 }
 
 
-char* InputCheck( int argc, char* argv[], char** r, double* t, int* port )
+//===================================================================
+//===================================================================
+
+void InputCheck( int argc, char* argv[], char** r, double* t, int* port, char* addr )
 {
 	if( argc != 6 )
 	{
@@ -84,6 +153,7 @@ char* InputCheck( int argc, char* argv[], char** r, double* t, int* port )
 		{
 		case 'r': *r = optarg; break;
 		case 't': *t = strtof( optarg, NULL ); break;
+		default: break;
 		}
 	}
 	if( *t < 1 || *t > 8 )
@@ -93,7 +163,6 @@ char* InputCheck( int argc, char* argv[], char** r, double* t, int* port )
 	int flag = 0, flag2 = 0;
 	int mult = 10;
 	*port = 0;
-	char* addr = malloc(50);
 	for( int i = 0; i < strlen(argv[5]); i++ )
 	{
 		if( argv[5][i] == ':' )
@@ -114,9 +183,11 @@ char* InputCheck( int argc, char* argv[], char** r, double* t, int* port )
 		*port = strtol( addr, NULL, 10 );
 		strcpy( addr, "localhost" );
 	}
-
-	return addr;
+	if( strlen(addr) > 15 )
+		errExit( "adress error" );
 }
+
+//===================================================================
 
 timer_t create_timer( double t )
 {
@@ -139,9 +210,77 @@ timer_t create_timer( double t )
 	return timerid;
 }
 
-
 void handler( int signal )
 {
 	generate_data = 1;
+}
+
+//===================================================================
+
+int isEmpty( unsigned int head, unsigned int tail )
+{
+	return head == tail;
+}
+
+int isFull( unsigned int head, unsigned int tail )
+{
+	return (head+1) == tail;
+}
+
+void writeBuf( struct Buffer* buffer, char data )
+{
+	if( isFull( buffer->head, buffer->tail ) )
+		return;
+	buffer->data[buffer->head] = data;
+	if( buffer->head + 1 > MAX )
+		buffer->head = 0;
+	else
+		buffer->head += 1;
+}
+
+char readBuf( struct Buffer* buffer )
+{
+	if( isEmpty( buffer->head, buffer->tail ) )
+			return '0';
+	if( buffer->tail + 1 > MAX )
+	{
+		buffer->tail = 0;
+		return buffer->data[buffer->tail];
+	}
+	buffer->tail += 1;
+	return buffer->data[buffer->tail];
+}
+
+//===================================================================
+
+int makeSocket( int port, char addr[16] )
+{
+	int sock_fd = socket( AF_INET, SOCK_STREAM, 0 );
+	if( sock_fd == -1 )
+		errExit( "socket create error" );
+	
+	struct sockaddr_in A;
+	A.sin_family = AF_INET;
+	A.sin_port = htons( port );
+	if( !strcmp( addr, "localhost" ) )
+		strcpy( addr, "127.0.0.1" );
+	inet_aton( addr, &A.sin_addr );
+	int b = bind( sock_fd, (struct sockaddr*)&A, sizeof(struct sockaddr_in) );
+	if( b == -1 )
+		errExit( "bind error" );
+	
+	int l = listen( sock_fd, 50 );
+	if( l == -1 )
+		errExit( "listen error" );
+
+	return sock_fd;
+}
+
+int setnonblocking(int fd)
+{
+    int flags;
+    if (-1 == (flags = fcntl(fd, F_GETFL, 0)))
+        flags = 0;
+    return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 }
 
