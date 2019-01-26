@@ -10,10 +10,12 @@
 #include <arpa/inet.h>
 #include <sys/epoll.h>
 #include <fcntl.h>
+#include <errno.h>
 
 #define MAX 1250000
 #define MAX_EVENTS 10
 #define MAXBUF 1024
+#define MAX_SEND 112000
 
 void errExit( char * mes )
 {
@@ -24,7 +26,7 @@ void errExit( char * mes )
 void InputCheck( int argc, char* argv[], char** r, double* t, int* port, char* addr );
 
 timer_t create_timer( double t );
-void handler( int signal );
+void saHandler( int sig );
 volatile int generate_data = 0;
 
 struct Buffer
@@ -37,6 +39,9 @@ int isEmpty( unsigned int head, unsigned int tail );
 int isFull( unsigned int head, unsigned int tail );
 void writeBuf( struct Buffer* buffer, char data );
 char readBuf( struct Buffer* buffer );
+unsigned int sizeBuf( unsigned int head, unsigned int tail );
+
+int generateData( struct Buffer* buffer, int* i );
 
 int makeSocket( int port, char addr[16] );
 int setnonblocking(int fd);
@@ -72,7 +77,7 @@ int main( int argc, char* argv[] )
 		errExit( "epoll_ctl error" );
 
 	struct sigaction sa;
-	sa.sa_handler = handler;
+	sa.sa_handler = &saHandler;
 	if( sigaction(SIGCHLD, &sa, NULL) == -1 )
 		errExit( "Sigaction error" );
 	
@@ -81,18 +86,26 @@ int main( int argc, char* argv[] )
 	int i = 65;
 	while( 1 )
 	{
+		//generate data
 		if( !isFull(magazine.head, magazine.tail) && generate_data )
 		{
-			for( int j = 0; j < 640; j++ )
-				writeBuf( &magazine, i );
-			i++;
-			generate_data = 0;
+			//int count =
+			generateData( &magazine, &i );
 		}
+		//development
+		if( i > 68 )
+			break;
 	
-		//
+		//wait on descriptor to connection
 		nfds = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
 		if( nfds == -1 )
-			errExit( "epoll_wait error" );
+		{
+			if( errno != EINTR )
+				errExit( "epoll_wait error" );
+			else
+				continue;
+		}
+
 		for( int n = 0; n < nfds; n++ )
 		{
 			if( events[n].data.fd == sock_fd )
@@ -100,34 +113,56 @@ int main( int argc, char* argv[] )
 				int new_fd = accept( sock_fd, (struct sockaddr*)&B, &Blen );
 				if( new_fd == -1 )
 					errExit( "accept error" );
-				setnonblocking(new_fd);
-				ev.events = EPOLLIN | EPOLLET;
-				ev.data.fd = new_fd;
-				if( epoll_ctl(epoll_fd, EPOLL_CTL_ADD, new_fd, &ev) == -1 )
-					errExit( "epoll_ctl_new error" );
+				//is it needed?
+				//setnonblocking(new_fd);
+				//ev.events = EPOLLIN | EPOLLET;
+				//ev.data.fd = new_fd;
+				//if( epoll_ctl(epoll_fd, EPOLL_CTL_ADD, new_fd, &ev) == -1 )
+				//	errExit( "epoll_ctl_new error" );
+				
+				//read, send data
+				int readed = read(new_fd, NULL, 10);
+				if( readed == -1 )
+					errExit( "read error" );
+				if( readed != 4 )
+					continue;
 
+				char* buf_send = malloc( MAX_SEND );
+				int send_flag = 1;
+				if( sizeBuf(magazine.head, magazine.tail) >= MAX_SEND )
+				{
+					for( int j = 0; j < MAX_SEND; j++ )
+					{
+						buf_send[j] = readBuf( &magazine );
+						if( buf_send[j] == '0' )
+						{
+							send_flag = 0;
+							break;
+						}
+					}
+				}
+				
+				if( send_flag )
+				{
+					if( write( new_fd, buf_send, MAX_SEND ) == -1 )
+						errExit( "write error" );
+				}
+					
+				free( buf_send );
 
+				/*
+				if( close( new_fd ) == -1 )
+					errExit( "close socket error" );
+				*/
 			}
 		}
-
-
-		if( i == 122 ) i = 64;
-		else if( i == 90 ) i = 96;
-		//development
-		if( i > 68 )
-			break;
 	}
 
 	write( 1, magazine.data, strlen(magazine.data) );
 
 	if( close( sock_fd ) == -1 )
 		errExit( "close socket error" );
-
-	/*
-	if( close( new_fd ) == -1 )
-		errExit( "close socket error" );
-	*/
-
+	
 	if( timer_delete( timerid ) == -1 )
 		errExit( "timer_delete error" );
 
@@ -210,7 +245,7 @@ timer_t create_timer( double t )
 	return timerid;
 }
 
-void handler( int signal )
+void saHandler( int sig )
 {
 	generate_data = 1;
 }
@@ -251,8 +286,27 @@ char readBuf( struct Buffer* buffer )
 	return buffer->data[buffer->tail];
 }
 
+unsigned int sizeBuf( unsigned int head, unsigned int tail )
+{
+	return tail - head;
+}
+
 //===================================================================
 
+int generateData( struct Buffer* buffer, int* i )
+{
+	int j = 0;
+	for( ; j < 640; j++ )
+		writeBuf( buffer, *i );
+	generate_data = 0;
+	(*i)++;
+	if( *i == 122 ) *i = 64;
+	else if( *i == 90 ) *i = 96;
+
+	return j;
+}
+
+//===================================================================
 int makeSocket( int port, char addr[16] )
 {
 	int sock_fd = socket( AF_INET, SOCK_STREAM, 0 );
