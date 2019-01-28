@@ -4,6 +4,16 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <time.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <poll.h>
+#include <errno.h>
+
+
+#define MAX_READ 114688
+
 
 void errExit( char* mes )
 {
@@ -14,6 +24,12 @@ void errExit( char* mes )
 int InputCheck( int argc, char* argv[], int* cnt, double* r, int* port, char* addr );
 int randomizeL( unsigned int L1, unsigned int L2 );
 double randomizeD( double D1, double D2 );
+
+int connectSock( int port, char* addr );
+
+timer_t create_timer( double t );
+void saHandlerTim( int sig );
+volatile int timer_pick = 0;
 
 //===================================================================
 //===================================================================
@@ -26,8 +42,88 @@ int main( int argc, char* argv[] )
 	char addr[16] = { '\0' };
 	int flags = InputCheck( argc, argv, &cnt, &r, &port, addr );
 
-	printf( "flags: %d cnt: %d, r: %f, port: %d, addr: %s\n", flags, cnt, r, port, addr );
+	//printf( "flags: %d cnt: %d, r: %f, port: %d, addr: %s\n", flags, cnt, r, port, addr );
+	
+	int sock_fd = connectSock( port, addr );
+	
+	struct sigaction sa1;
+	sa1.sa_handler = &saHandlerTim;
+	if( sigaction(SIGCHLD, &sa1, NULL) == -1 )
+		errExit( "Sigaction error" );
+	
+	struct pollfd fds[1];
+	fds[0].fd = sock_fd;
+	fds[0].events = POLLIN;
+	int nfds = 1;
 
+	timer_t timerid = create_timer( r );
+
+	char* buf = malloc( MAX_READ );
+	while( cnt )
+	{
+		if( !flags )
+		{
+			if( timer_pick && write( sock_fd, "aaaa", 5 ) > 0 )
+			{
+				write( 1, "%", 1 );
+				timer_pick = 0;
+				cnt--;
+			}
+
+			if( poll(fds, nfds, 3*60*1000) == -1 )
+			{
+				if( errno != EINTR )
+					errExit( "poll error" );
+				else
+					continue;
+			}
+			if( fds[0].revents == POLLIN && fds[0].fd == sock_fd )
+				if( read( sock_fd, buf, MAX_READ ) > 0 )
+					if( write( 1, buf, strlen(buf) ) == -1 )
+						errExit( "write error" );
+		}
+		else if( timer_pick )
+		{
+			if( write( sock_fd, "aaaa", 5 ) > 0 )
+			{
+				timer_pick = 0;
+				cnt--;
+			}
+
+			if( poll(fds, nfds, 3*60*1000) == -1 )
+			{
+				if( errno != EINTR )
+					errExit( "poll error" );
+				else
+					continue;
+			}
+			if( fds[0].revents == POLLIN && fds[0].fd == sock_fd )
+				if( read( sock_fd, buf, MAX_READ ) > 0 )
+					if( write( 1, buf, strlen(buf) ) == -1 )
+						errExit( "write error" );
+
+		}
+	}
+
+	free( buf );
+
+	if( timer_delete(timerid) == -1 )
+		errExit( "timer delete error" );
+
+	if( close(sock_fd) == -1 )
+		errExit( "close error" );
+	
+	//report
+	struct timespec ts1, ts2;
+	if( clock_gettime(CLOCK_REALTIME, &ts1) == -1 )
+		errExit( "clock_gettime error" );
+	if( clock_gettime(CLOCK_MONOTONIC, &ts2) == -1 )
+		errExit( "clock_gettime error" );
+	
+	fprintf( stderr, "\n1. Wall time: %ld, %ld \t Monotonic: %ld, %ld\n", ts1.tv_sec, ts1.tv_nsec, ts2.tv_sec, ts2.tv_nsec );
+	fprintf( stderr, "2. Pid: %d \t address: %s\n", getpid(), addr );
+
+	
 	return 0;
 }
 
@@ -177,4 +273,52 @@ double randomizeD( double D1, double D2 )
 }
 
 //===================================================================
+
+int connectSock( int port, char* addr )
+{
+	int sock_fd = socket( AF_INET, SOCK_STREAM, 0 );
+	if( sock_fd == -1 )
+		errExit( "socket error" );
+	struct sockaddr_in A;
+	A.sin_family = AF_INET;
+	A.sin_port = htons(port);
+	if( !strcmp(addr, "localhost") )
+			strcpy(addr, "127.0.0.1");
+	inet_aton( addr, &A.sin_addr );
+	
+	int c = connect( sock_fd, (struct sockaddr*)&A, sizeof(struct sockaddr_in) );
+	if( c == -1 )
+	{
+		errExit( "connect error" );
+	}
+
+	return sock_fd;
+}
+
+timer_t create_timer( double t )
+{
+	struct sigevent sev;
+	timer_t timerid;
+	sev.sigev_notify = SIGEV_SIGNAL;
+	sev.sigev_signo = SIGCHLD;
+	if( timer_create(CLOCK_REALTIME, &sev, &timerid) == -1 )
+		errExit( "timer_create error" );
+
+	struct itimerspec its;
+	its.it_value.tv_sec = t;
+	its.it_value.tv_nsec = 0;
+	its.it_interval.tv_sec = t;
+	its.it_interval.tv_nsec = 0;
+
+	if( timer_settime(timerid, 0, &its, NULL) == -1 )
+		errExit( "timer_settime error" );
+
+	return timerid;
+}
+
+
+void saHandlerTim( int sig )
+{
+	timer_pick = 1;
+}
 

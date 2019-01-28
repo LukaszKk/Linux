@@ -12,10 +12,10 @@
 #include <fcntl.h>
 #include <errno.h>
 
-#define MAX 1250000
+#define MAX 1310720
 #define MAX_EVENTS 10
 #define MAXBUF 1024
-#define MAX_SEND 112000
+#define MAX_SEND 114688
 
 void errExit( char * mes )
 {
@@ -26,7 +26,7 @@ void errExit( char * mes )
 void InputCheck( int argc, char* argv[], char** r, double* t, int* port, char* addr );
 
 timer_t create_timer( double t );
-void saHandler( int sig );
+void saHandlerGen( int sig );
 volatile int generate_data = 0;
 
 struct Buffer
@@ -45,6 +45,8 @@ int generateData( struct Buffer* buffer, int* i );
 
 int makeSocket( int port, char addr[16] );
 int setnonblocking(int fd);
+void saHandlerSock( int sig );
+volatile int socket_OK = 0;
 
 //===================================================================
 //===================================================================
@@ -76,9 +78,14 @@ int main( int argc, char* argv[] )
 	if( epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sock_fd, &ev) == -1 )
 		errExit( "epoll_ctl error" );
 
-	struct sigaction sa;
-	sa.sa_handler = &saHandler;
-	if( sigaction(SIGCHLD, &sa, NULL) == -1 )
+	struct sigaction sa1;
+	sa1.sa_handler = &saHandlerGen;
+	if( sigaction(SIGCHLD, &sa1, NULL) == -1 )
+		errExit( "Sigaction error" );
+	
+	struct sigaction sa2;
+	sa2.sa_handler = &saHandlerSock;
+	if( sigaction(SIGPIPE, &sa2, NULL) == -1 )
 		errExit( "Sigaction error" );
 	
 	timer_t timerid = create_timer( t );
@@ -93,8 +100,8 @@ int main( int argc, char* argv[] )
 			generateData( &magazine, &i );
 		}
 		//development
-		if( i > 68 )
-			break;
+		//if( i > 68 )
+		//	break;
 	
 		//wait on descriptor to connection
 		nfds = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
@@ -113,47 +120,45 @@ int main( int argc, char* argv[] )
 				int new_fd = accept( sock_fd, (struct sockaddr*)&B, &Blen );
 				if( new_fd == -1 )
 					errExit( "accept error" );
-				//is it needed?
-				//setnonblocking(new_fd);
-				//ev.events = EPOLLIN | EPOLLET;
-				//ev.data.fd = new_fd;
-				//if( epoll_ctl(epoll_fd, EPOLL_CTL_ADD, new_fd, &ev) == -1 )
-				//	errExit( "epoll_ctl_new error" );
+				//
+				setnonblocking(new_fd);
+				ev.events = EPOLLIN | EPOLLET;
+				ev.data.fd = new_fd;
+				if( epoll_ctl(epoll_fd, EPOLL_CTL_ADD, new_fd, &ev) == -1 )
+					errExit( "epoll_ctl_new error" );
 				
-				//read, send data
-				int readed = read(new_fd, NULL, 10);
-				if( readed == -1 )
-					errExit( "read error" );
-				if( readed != 4 )
-					continue;
+				socket_OK = 1;
 
+				//read 4 bytes
 				char* buf_send = malloc( MAX_SEND );
-				int send_flag = 1;
-				if( sizeBuf(magazine.head, magazine.tail) >= MAX_SEND )
+				while( 1 )
 				{
-					for( int j = 0; j < MAX_SEND; j++ )
+					//client closed connection
+					if( !socket_OK )
+						break;
+					int readed = read(new_fd, NULL, 10);
+					if( readed == 4 )
+						continue;
+				
+					//send data
+					/*if( sizeBuf(magazine.head, magazine.tail) >= MAX_SEND )
 					{
-						buf_send[j] = readBuf( &magazine );
-						if( buf_send[j] == '0' )
-						{
-							send_flag = 0;
-							break;
-						}
+						for( int j = 0; j < MAX_SEND; j++ )
+							buf_send[j] = readBuf( &magazine );
+						write( new_fd, buf_send, MAX_SEND );
+					}*/
+				
+				
+					//development
+					if( sizeBuf(magazine.head, magazine.tail) >= 50 )
+					{
+						for( int j = 0; j < 50; j++ )
+							buf_send[j] = readBuf( &magazine );
+						write( new_fd, buf_send, MAX_SEND );
 					}
 				}
-				
-				if( send_flag )
-				{
-					if( write( new_fd, buf_send, MAX_SEND ) == -1 )
-						errExit( "write error" );
-				}
-					
-				free( buf_send );
 
-				/*
-				if( close( new_fd ) == -1 )
-					errExit( "close socket error" );
-				*/
+				free( buf_send );
 			}
 		}
 	}
@@ -193,7 +198,6 @@ void InputCheck( int argc, char* argv[], char** r, double* t, int* port, char* a
 	}
 	if( *t < 1 || *t > 8 )
 		errExit( "Param T must be between 1 and 8" );
-	*t = *t/96;
 	
 	int flag = 0, flag2 = 0;
 	int mult = 10;
@@ -234,10 +238,10 @@ timer_t create_timer( double t )
 		errExit( "timer_create error" );
 
 	struct itimerspec its;
-	its.it_value.tv_sec = t*100;
-	its.it_value.tv_nsec = 0;
-	its.it_interval.tv_sec = t * 100;
-	its.it_interval.tv_nsec = 0;
+	its.it_value.tv_sec = 0;
+	its.it_value.tv_nsec = t*60/96*1000000000;
+	its.it_interval.tv_sec = 0;
+	its.it_interval.tv_nsec = t*60/96*1000000000;
 
 	if( timer_settime(timerid, 0, &its, NULL) == -1 )
 		errExit( "timer_settime error" );
@@ -245,8 +249,9 @@ timer_t create_timer( double t )
 	return timerid;
 }
 
-void saHandler( int sig )
+void saHandlerGen( int sig )
 {
+	write( 1, "@", 1 );
 	generate_data = 1;
 }
 
@@ -338,3 +343,7 @@ int setnonblocking(int fd)
     return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 }
 
+void saHandlerSock( int sig )
+{
+	socket_OK = 0;
+}
