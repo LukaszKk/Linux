@@ -10,6 +10,7 @@
 #include <arpa/inet.h>
 #include <poll.h>
 #include <errno.h>
+#include <fcntl.h>
 
 
 #define MAX_READ 114688
@@ -31,6 +32,13 @@ timer_t create_timer( double t );
 void saHandlerTim( int sig );
 volatile int timer_pick = 0;
 
+typedef struct
+{
+	long int delay1;	
+	long int delay2;
+	char* md5sum;
+} Report;
+
 //===================================================================
 //===================================================================
 
@@ -40,12 +48,14 @@ int main( int argc, char* argv[] )
 	double r;
 	int port;
 	char addr[16] = { '\0' };
-	int flags = InputCheck( argc, argv, &cnt, &r, &port, addr );
+	int flagS = InputCheck( argc, argv, &cnt, &r, &port, addr );
 
-	//printf( "flags: %d cnt: %d, r: %f, port: %d, addr: %s\n", flags, cnt, r, port, addr );
-	
 	int sock_fd = connectSock( port, addr );
-	
+	int flags;
+	if( (flags = fcntl(sock_fd, F_GETFL, 0)) == -1 )
+		flags = 0;
+	fcntl( sock_fd, F_SETFL, flags | O_NONBLOCK );
+
 	struct sigaction sa1;
 	sa1.sa_handler = &saHandlerTim;
 	if( sigaction(SIGCHLD, &sa1, NULL) == -1 )
@@ -56,17 +66,27 @@ int main( int argc, char* argv[] )
 	fds[0].events = POLLIN;
 	int nfds = 1;
 
+	char* buf = malloc( MAX_READ );
+	Report* report = malloc( cnt*sizeof(Report) );
+	int repindex = 0;
+	struct timespec tstart1, tend1, tstart2, tend2;
+	
 	timer_t timerid = create_timer( r );
 
-	char* buf = malloc( MAX_READ );
 	while( cnt )
 	{
-		if( !flags )
+		if( !flagS )
 		{
 			if( timer_pick && write( sock_fd, "aaaa", 5 ) > 0 )
 			{
-				write( 1, "%", 1 );
 				timer_pick = 0;
+				if( clock_gettime(CLOCK_REALTIME, &tstart1) == -1 )
+					errExit( "clock_gettime error" );
+				
+				//development
+				if( write( 1, "%", 1 ) == -1 )
+					errExit( "dev write error" );
+				
 				cnt--;
 			}
 
@@ -78,15 +98,34 @@ int main( int argc, char* argv[] )
 					continue;
 			}
 			if( fds[0].revents == POLLIN && fds[0].fd == sock_fd )
+			{
+				if( clock_gettime(CLOCK_REALTIME, &tstart2) == -1 )
+					errExit( "clock_gettime error" );
 				if( read( sock_fd, buf, MAX_READ ) > 0 )
+				{
+
+					if( clock_gettime(CLOCK_REALTIME, &tend1) == -1 )
+						errExit( "clock_gettime error" );
+					report[repindex].md5sum = buf;
+					//development
 					if( write( 1, buf, strlen(buf) ) == -1 )
 						errExit( "write error" );
+				}
+				else
+					continue;
+				if( clock_gettime(CLOCK_REALTIME, &tend2) == -1 )
+					errExit( "clock_gettime error" );
+			}
+			else
+				continue;
 		}
 		else if( timer_pick )
 		{
 			if( write( sock_fd, "aaaa", 5 ) > 0 )
 			{
 				timer_pick = 0;
+				if( clock_gettime(CLOCK_REALTIME, &tstart1) == -1 )
+					errExit( "clock_gettime error" );
 				cnt--;
 			}
 
@@ -98,12 +137,31 @@ int main( int argc, char* argv[] )
 					continue;
 			}
 			if( fds[0].revents == POLLIN && fds[0].fd == sock_fd )
+			{
+				if( clock_gettime(CLOCK_REALTIME, &tstart2) == -1 )
+					errExit( "clock_gettime error" );
 				if( read( sock_fd, buf, MAX_READ ) > 0 )
-					if( write( 1, buf, strlen(buf) ) == -1 )
-						errExit( "write error" );
-
+				{
+					if( clock_gettime(CLOCK_REALTIME, &tend1) == -1 )
+						errExit( "clock_gettime error" );
+					report[repindex].md5sum = buf;
+				}
+				else
+					continue;
+				if( clock_gettime(CLOCK_REALTIME, &tend2) == -1 )
+					errExit( "clock_gettime error" );
+			}
+			else
+				continue;
 		}
+		else
+			continue;
+
+		report[repindex].delay1 = (tend1.tv_sec-tstart1.tv_sec)*1000000000 + (tend1.tv_nsec-tstart1.tv_nsec);
+		report[repindex].delay2 = (tend2.tv_sec-tstart2.tv_sec)*1000000000 + (tend2.tv_nsec-tstart2.tv_nsec);
+		repindex++;
 	}
+	fprintf(stderr, "\nrep: %d\n", repindex);
 
 	free( buf );
 
@@ -114,15 +172,17 @@ int main( int argc, char* argv[] )
 		errExit( "close error" );
 	
 	//report
-	struct timespec ts1, ts2;
-	if( clock_gettime(CLOCK_REALTIME, &ts1) == -1 )
+	if( clock_gettime(CLOCK_REALTIME, &tend1) == -1 )
 		errExit( "clock_gettime error" );
-	if( clock_gettime(CLOCK_MONOTONIC, &ts2) == -1 )
+	if( clock_gettime(CLOCK_MONOTONIC, &tend2) == -1 )
 		errExit( "clock_gettime error" );
 	
-	fprintf( stderr, "\n1. Wall time: %ld, %ld \t Monotonic: %ld, %ld\n", ts1.tv_sec, ts1.tv_nsec, ts2.tv_sec, ts2.tv_nsec );
+	fprintf( stderr, "\n1. Wall time: %ld, %ld \t Monotonic: %ld, %ld\n", tend1.tv_sec, tend1.tv_nsec, tend2.tv_sec, tend2.tv_nsec );
 	fprintf( stderr, "2. Pid: %d \t address: %s\n", getpid(), addr );
-
+	for( int i = 0 ; i < repindex; i++ )
+		fprintf( stderr, "3.\n\ta) %ld\n\tb) %ld\n\tc) %s\n", report[i].delay1, report[i].delay2, report[i].md5sum );
+	
+	free( report );
 	
 	return 0;
 }
