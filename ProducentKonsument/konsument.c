@@ -12,6 +12,8 @@
 #include <errno.h>
 #include <fcntl.h>
 
+#include <openssl/md5.h>
+
 
 #define MAX_READ 114688
 
@@ -32,6 +34,8 @@ timer_t create_timer( double t );
 void saHandlerTim( int sig );
 volatile int timer_pick = 0;
 
+char* createMd5sum( char data[MAX_READ] );
+
 typedef struct
 {
 	long int delay1;	
@@ -48,36 +52,38 @@ int main( int argc, char* argv[] )
 	double r;
 	int port;
 	char addr[16] = { '\0' };
+	
 	int flagS = InputCheck( argc, argv, &cnt, &r, &port, addr );
-
-	int sock_fd = connectSock( port, addr );
-	int flags;
-	if( (flags = fcntl(sock_fd, F_GETFL, 0)) == -1 )
-		flags = 0;
-	fcntl( sock_fd, F_SETFL, flags | O_NONBLOCK );
-
+	
 	struct sigaction sa1;
 	sa1.sa_handler = &saHandlerTim;
 	if( sigaction(SIGCHLD, &sa1, NULL) == -1 )
 		errExit( "Sigaction error" );
 	
-	struct pollfd fds[1];
-	fds[0].fd = sock_fd;
-	fds[0].events = POLLIN;
-	int nfds = 1;
-
 	char* buf = malloc( MAX_READ );
 	Report* report = malloc( cnt*sizeof(Report) );
 	int repindex = 0;
 	struct timespec tstart1, tend1, tstart2, tend2;
 	
+	int sock_fd = connectSock( port, addr );
+	//int flags;
+	//if( (flags = fcntl(sock_fd, F_GETFL, 0)) == -1 )
+	//	flags = 0;
+	//fcntl( sock_fd, F_SETFL, flags | O_NONBLOCK );
+
+	struct pollfd fds[1];
+	fds[0].fd = sock_fd;
+	fds[0].events = POLLIN;
+
 	timer_t timerid = create_timer( r );
 
-	while( cnt )
+	while( cnt > 0 )
 	{
-		if( !flagS )
+		switch( flagS )
 		{
-			if( timer_pick && write( sock_fd, "aaaa", 5 ) > 0 )
+		case 0:
+		{
+			if( (timer_pick == 1) && (send( sock_fd, "aaaa", 4, 0 ) == 4) )
 			{
 				timer_pick = 0;
 				if( clock_gettime(CLOCK_REALTIME, &tstart1) == -1 )
@@ -89,100 +95,113 @@ int main( int argc, char* argv[] )
 				
 				cnt--;
 			}
-
-			if( poll(fds, nfds, 3*60*1000) == -1 )
+			
+			fds[0].revents = 0;
+			if( poll(fds, 1, 3*60*1000) == -1 )
 			{
 				if( errno != EINTR )
 					errExit( "poll error" );
 				else
 					continue;
 			}
-			if( fds[0].revents == POLLIN && fds[0].fd == sock_fd )
+			if( fds[0].revents & POLLIN )
 			{
 				if( clock_gettime(CLOCK_REALTIME, &tstart2) == -1 )
 					errExit( "clock_gettime error" );
-				if( read( sock_fd, buf, MAX_READ ) > 0 )
+				while( read( fds[0].fd, buf, MAX_READ ) > 0 )
 				{
 
 					if( clock_gettime(CLOCK_REALTIME, &tend1) == -1 )
 						errExit( "clock_gettime error" );
-					report[repindex].md5sum = buf;
+					
+					report[repindex].md5sum = createMd5sum(buf);
+					
 					//development
-					if( write( 1, buf, strlen(buf) ) == -1 )
-						errExit( "write error" );
+					//if( write( 1, buf, strlen(buf) ) == -1 )
+					//	errExit( "write error" );
+					//development
+					if( write( 1, "#", 1 ) == -1 )
+						errExit( "dev write error" );
 				}
-				else
-					continue;
 				if( clock_gettime(CLOCK_REALTIME, &tend2) == -1 )
 					errExit( "clock_gettime error" );
 			}
 			else
 				continue;
+			
+			break;
 		}
-		else if( timer_pick )
+		case 1:
 		{
-			if( write( sock_fd, "aaaa", 5 ) > 0 )
+		//TODO repair
+		if( timer_pick == 1 )
+		{
+			timer_pick = 0;
+			
+			if( send( sock_fd, "aaaa", 4, 0 ) == 4 )
 			{
-				timer_pick = 0;
 				if( clock_gettime(CLOCK_REALTIME, &tstart1) == -1 )
 					errExit( "clock_gettime error" );
 				cnt--;
 			}
 
-			if( poll(fds, nfds, 3*60*1000) == -1 )
+			fds[0].revents = 0;
+			if( poll(fds, 1, 3*60*1000) == -1 )
 			{
 				if( errno != EINTR )
 					errExit( "poll error" );
 				else
 					continue;
 			}
-			if( fds[0].revents == POLLIN && fds[0].fd == sock_fd )
+			if( fds[0].revents & POLLIN )
 			{
 				if( clock_gettime(CLOCK_REALTIME, &tstart2) == -1 )
 					errExit( "clock_gettime error" );
-				if( read( sock_fd, buf, MAX_READ ) > 0 )
+				while( read( fds[0].fd, buf, MAX_READ ) > 0 )
 				{
 					if( clock_gettime(CLOCK_REALTIME, &tend1) == -1 )
 						errExit( "clock_gettime error" );
-					report[repindex].md5sum = buf;
+					report[repindex].md5sum = createMd5sum(buf);
 				}
-				else
-					continue;
 				if( clock_gettime(CLOCK_REALTIME, &tend2) == -1 )
 					errExit( "clock_gettime error" );
 			}
 			else
 				continue;
 		}
-		else
-			continue;
+		break;
+		}
+		default: continue;
+		}
 
 		report[repindex].delay1 = (tend1.tv_sec-tstart1.tv_sec)*1000000000 + (tend1.tv_nsec-tstart1.tv_nsec);
 		report[repindex].delay2 = (tend2.tv_sec-tstart2.tv_sec)*1000000000 + (tend2.tv_nsec-tstart2.tv_nsec);
 		repindex++;
 	}
-	fprintf(stderr, "\nrep: %d\n", repindex);
 
-	free( buf );
-
-	if( timer_delete(timerid) == -1 )
-		errExit( "timer delete error" );
-
-	if( close(sock_fd) == -1 )
-		errExit( "close error" );
-	
 	//report
 	if( clock_gettime(CLOCK_REALTIME, &tend1) == -1 )
 		errExit( "clock_gettime error" );
 	if( clock_gettime(CLOCK_MONOTONIC, &tend2) == -1 )
 		errExit( "clock_gettime error" );
 	
-	fprintf( stderr, "\n1. Wall time: %ld, %ld \t Monotonic: %ld, %ld\n", tend1.tv_sec, tend1.tv_nsec, tend2.tv_sec, tend2.tv_nsec );
+	fprintf( stderr, "\n1. Wall time: %ld[s], %ld[ns] \t Monotonic: %ld[s], %ld[ns]\n", tend1.tv_sec, tend1.tv_nsec, tend2.tv_sec, tend2.tv_nsec );
+	fflush(stdout);
 	fprintf( stderr, "2. Pid: %d \t address: %s\n", getpid(), addr );
+	fflush(stdout);
 	for( int i = 0 ; i < repindex; i++ )
-		fprintf( stderr, "3.\n\ta) %ld\n\tb) %ld\n\tc) %s\n", report[i].delay1, report[i].delay2, report[i].md5sum );
+		fprintf( stderr, "3.\n\ta) %ld[ns]\n\tb) %ld[ns]\n\tc) md5: %s\n", report[i].delay1, report[i].delay2, report[i].md5sum );
+	fflush(stdout);
 	
-	free( report );
+	//if( timer_delete(timerid) == -1 )
+	//	errExit( "timer delete error" );
+
+	if( close(sock_fd) == -1 )
+		errExit( "close error" );
+	
+
+	//free( report );
+	//free( buf );
 	
 	return 0;
 }
@@ -199,15 +218,15 @@ int InputCheck( int argc, char* argv[], int* cnt, double* r, int* port, char* ad
 	}
 
 	int opt;
-	char* tmps;
-	char* tmpr;
+	char tmps[50] = { '\0' };
+	char tmpr[50] = { '\0' };
 	char* tmpcnt;
 	while( (opt=getopt(argc, argv, "#:r:s:")) != -1 )
 	{
 		switch( opt )
 		{
-		case 's': tmps = optarg; break;
-		case 'r': tmpr = optarg; break;
+		case 's': strcpy(tmps, optarg); break;
+		case 'r': strcpy(tmpr, optarg); break;
 		case '#': tmpcnt = optarg; break;
 		default: break;
 		}
@@ -263,10 +282,10 @@ int InputCheck( int argc, char* argv[], int* cnt, double* r, int* port, char* ad
 	
 	//r/s
 	int flags = 0;
-	if( tmpr == NULL )
+	if( !strcmp( tmpr, "" ) )
 	{
 		flags = 1;
-		tmpr = tmps;
+		strcpy(tmpr, tmps);
 	}
 
 	flag = 0;
@@ -339,21 +358,23 @@ int connectSock( int port, char* addr )
 	int sock_fd = socket( AF_INET, SOCK_STREAM, 0 );
 	if( sock_fd == -1 )
 		errExit( "socket error" );
+	
 	struct sockaddr_in A;
 	A.sin_family = AF_INET;
 	A.sin_port = htons(port);
 	if( !strcmp(addr, "localhost") )
 			strcpy(addr, "127.0.0.1");
 	inet_aton( addr, &A.sin_addr );
-	
+	bzero( &(A.sin_zero), 8 );
+
 	int c = connect( sock_fd, (struct sockaddr*)&A, sizeof(struct sockaddr_in) );
 	if( c == -1 )
-	{
 		errExit( "connect error" );
-	}
 
 	return sock_fd;
 }
+
+//===================================================================
 
 timer_t create_timer( double t )
 {
@@ -380,5 +401,23 @@ timer_t create_timer( double t )
 void saHandlerTim( int sig )
 {
 	timer_pick = 1;
+}
+
+//===================================================================
+
+char* createMd5sum( char data[MAX_READ] )
+{
+    unsigned char* out = malloc(sizeof(unsigned char)*16);
+    memset( out, 0, sizeof(*out) );
+    MD5_CTX c;
+    MD5_Init(&c);
+    MD5_Update(&c, data, MAX_READ);
+    MD5_Final(out, &c);
+ 
+    char* md5 = malloc(33);
+    for(int i = 0; i < 16; ++i)
+        sprintf(&md5[i*2], "%02x", (unsigned int)out[i]);
+ 
+    return md5;
 }
 

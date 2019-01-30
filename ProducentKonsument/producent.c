@@ -13,7 +13,7 @@
 #include <errno.h>
 
 #define MAX 1310720
-#define MAX_EVENTS 10
+#define MAX_EVENTS 64
 #define MAXBUF 1024
 #define MAX_SEND 114688
 
@@ -47,6 +47,8 @@ int makeSocket( int port, char addr[16] );
 int setnonblocking(int fd);
 void saHandlerSock( int sig );
 volatile int socket_OK = 0;
+int createNewConnection( int fd, int epoll_fd, struct Buffer* magazine );
+int processData( int fd );
 
 //===================================================================
 //===================================================================
@@ -65,18 +67,26 @@ int main( int argc, char* argv[] )
 
 	int sock_fd = makeSocket( port, addr );
 	
-	struct sockaddr_in B;
-	socklen_t Blen = sizeof(struct sockaddr_in);
+	setnonblocking(sock_fd);
+
+	int l = listen( sock_fd, 5 );
+	if( l == -1 )
+		errExit( "listen error" );
+	
+	//struct sockaddr_in B;
+	//socklen_t Blen = sizeof(struct sockaddr_in);
 	
 	int epoll_fd = epoll_create1(0);
 	if( epoll_fd == -1 )
 		errExit( "epoll create error" );
-	struct epoll_event ev, events[MAX_EVENTS];
-	int nfds;
-	ev.events = EPOLLIN;
+
+	struct epoll_event ev, *events;
 	ev.data.fd = sock_fd;
+	ev.events = EPOLLIN | EPOLLET;
 	if( epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sock_fd, &ev) == -1 )
 		errExit( "epoll_ctl error" );
+	
+	events = calloc( MAX_EVENTS, sizeof(ev) );
 
 	struct sigaction sa1;
 	sa1.sa_handler = &saHandlerGen;
@@ -96,50 +106,82 @@ int main( int argc, char* argv[] )
 		//generate data
 		if( !isFull(magazine.head, magazine.tail) && generate_data )
 		{
+			generate_data = 0;
+
 			//int count =
 			generateData( &magazine, &i );
+			
+			//development
+			write( 1, "@", 1 );
 		}
 		//development
 		//if( i > 68 )
 		//	break;
 	
 		//wait on descriptor to connection
-		nfds = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
-		if( nfds == -1 )
+		int nfds = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
+		/*if( nfds == -1 )
 		{
 			if( errno != EINTR )
 				errExit( "epoll_wait error" );
 			else
 				continue;
-		}
+		}*/
 
+		int new_fd;
 		for( int n = 0; n < nfds; n++ )
 		{
-			if( events[n].data.fd == sock_fd )
+			if( (events[n].events & EPOLLERR) || (events[n].events & EPOLLHUP) || !(events[n].events & EPOLLIN) )
 			{
-				int new_fd = accept( sock_fd, (struct sockaddr*)&B, &Blen );
-				if( new_fd == -1 )
-					errExit( "accept error" );
+				printf( "\nerrno: %d\n", errno );
+			       	fflush(stdout);	
+				if( close(events[n].data.fd) == -1 )
+					errExit( "close events error" );
+			}
+			else if( events[n].data.fd == sock_fd )
+			{
+				new_fd = createNewConnection( sock_fd, epoll_fd, &magazine );
+				//int new_fd = accept( sock_fd, (struct sockaddr*)&B, &Blen );
 				//
-				setnonblocking(new_fd);
-				ev.events = EPOLLIN | EPOLLET;
-				ev.data.fd = new_fd;
-				if( epoll_ctl(epoll_fd, EPOLL_CTL_ADD, new_fd, &ev) == -1 )
-					errExit( "epoll_ctl_new error" );
+				//setnonblocking(new_fd);
+				//ev.events = EPOLLIN | EPOLLET;
+				//ev.data.fd = new_fd;
+				//if( epoll_ctl(epoll_fd, EPOLL_CTL_ADD, new_fd, &ev) == -1 )
+				//	errExit( "epoll_ctl_new error" );
 				
-				socket_OK = 1;
+				//socket_OK = 1;
 
 				//read 4 bytes
-				char* buf_send = malloc( MAX_SEND );
-				while( 1 )
-				{
+				//while( 1 )
+				//{
 					//client closed connection
-					if( !socket_OK )
+					//if( !socket_OK )
+					//{
+						//development
+					//	write( 1, "sock closed", 12 );
+					//	break;
+					//}
+					
+					/*int readed = recv(new_fd, buf, 4, MSG_DONTWAIT);
+					if( readed == -1  )
+					{
+						if( errno == EINTR )
+						{
+							free( buf );
+							continue;
+						}
+						//development
+						fprintf( stdout, "\n%d\n", errno );
+						fflush( stdout );
+						write( 1, "read bad count\n", 15 );
 						break;
-					int readed = read(new_fd, NULL, 10);
-					if( readed == 4 )
-						continue;
-				
+					}
+					free( buf );
+
+					//development
+					write( new_fd, "helloWW\n", 9 );
+					*/
+
 					//send data
 					/*if( sizeBuf(magazine.head, magazine.tail) >= MAX_SEND )
 					{
@@ -147,23 +189,30 @@ int main( int argc, char* argv[] )
 							buf_send[j] = readBuf( &magazine );
 						write( new_fd, buf_send, MAX_SEND );
 					}*/
-				
-				
-					//development
-					if( sizeBuf(magazine.head, magazine.tail) >= 50 )
-					{
-						for( int j = 0; j < 50; j++ )
-							buf_send[j] = readBuf( &magazine );
-						write( new_fd, buf_send, MAX_SEND );
-					}
+				//}
+			}
+			else if( processData( events[n].data.fd ) == 4 )	
+			{
+				char* buf_send = malloc( MAX_SEND );
+	
+				if( sizeBuf(magazine.head, magazine.tail) >= 50 )
+				{
+					for( int j = 0; j < 50; j++ )
+						buf_send[j] = readBuf( &magazine );
+					
+					//send( events[n].data.fd, buf_send, MAX_SEND, 0 );
+					write( events[n].data.fd, buf_send, 51 );
 				}
-
+			
 				free( buf_send );
 			}
 		}
 	}
 
-	write( 1, magazine.data, strlen(magazine.data) );
+	//development
+	//write( 1, magazine.data, strlen(magazine.data) );
+
+	free( events );
 
 	if( close( sock_fd ) == -1 )
 		errExit( "close socket error" );
@@ -251,7 +300,6 @@ timer_t create_timer( double t )
 
 void saHandlerGen( int sig )
 {
-	write( 1, "@", 1 );
 	generate_data = 1;
 }
 
@@ -303,7 +351,6 @@ int generateData( struct Buffer* buffer, int* i )
 	int j = 0;
 	for( ; j < 640; j++ )
 		writeBuf( buffer, *i );
-	generate_data = 0;
 	(*i)++;
 	if( *i == 122 ) *i = 64;
 	else if( *i == 90 ) *i = 96;
@@ -318,19 +365,21 @@ int makeSocket( int port, char addr[16] )
 	if( sock_fd == -1 )
 		errExit( "socket create error" );
 	
+	int opt = 1;
+ 	if( setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(int)) == -1)
+        	errExit( "setsockopt error" );
+
 	struct sockaddr_in A;
 	A.sin_family = AF_INET;
 	A.sin_port = htons( port );
 	if( !strcmp( addr, "localhost" ) )
 		strcpy( addr, "127.0.0.1" );
 	inet_aton( addr, &A.sin_addr );
+ 	bzero( &(A.sin_zero), 8 );
+
 	int b = bind( sock_fd, (struct sockaddr*)&A, sizeof(struct sockaddr_in) );
 	if( b == -1 )
 		errExit( "bind error" );
-	
-	int l = listen( sock_fd, 50 );
-	if( l == -1 )
-		errExit( "listen error" );
 
 	return sock_fd;
 }
@@ -339,11 +388,52 @@ int setnonblocking(int fd)
 {
     int flags;
     if( (flags = fcntl(fd, F_GETFL, 0)) == -1 )
-        flags = 0;
-    return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+        errExit( "fcntl error" );
+    if( fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1 )
+	    errExit( "fcntl error" );
+
+    return 0;
 }
 
 void saHandlerSock( int sig )
 {
 	socket_OK = 0;
+}
+
+
+int createNewConnection( int fd, int epoll_fd, struct Buffer* magazine )
+{
+	struct epoll_event event;
+	struct sockaddr B;
+	socklen_t Blen = sizeof(B);
+	int new_fd = -1;
+
+	while( (new_fd = accept(fd, (struct sockaddr*)&B, &Blen) ) != -1 )
+	{
+		//socket_OK = 1;
+		setnonblocking( new_fd );
+
+		event.data.fd = new_fd;
+		event.events = EPOLLIN | EPOLLET;
+		if( epoll_ctl(epoll_fd, EPOLL_CTL_ADD, new_fd, &event) == -1 )
+			errExit( "epoll_ctl" );
+		Blen = sizeof(B);
+	}
+
+	if( errno != EAGAIN && errno != EWOULDBLOCK)
+		perror("accept");
+
+	return new_fd;
+}
+
+int processData( int fd )
+{
+	char buf[5];
+	ssize_t count;// = read(fd, buf, sizeof(buf) - 1);
+	int cnt;
+
+	while( (count = read(fd, buf, sizeof(buf) - 1)) > 0 )
+		cnt = count;
+
+	return cnt;
 }
