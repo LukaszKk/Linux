@@ -66,6 +66,7 @@ int main( int argc, char* argv[] )
 	struct timespec tstart1, tend1, tstart2, tend2;
 	
 	int sock_fd = connectSock( port, addr );
+	
 	/*
 	int flagsock;
 	if( (flagsock = fcntl(sock_fd, F_GETFL, 0)) == -1 )

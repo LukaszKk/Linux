@@ -50,16 +50,14 @@ int generateData( struct Buffer* buffer, int* i );
 
 int makeSocket( int port, char addr[16] );
 int setnonblocking(int fd);
-void saHandlerSock( int sig );
-volatile int socket_OK = 0;
 int createNewConnection( int fd, int epoll_fd, struct Buffer* magazine, char addr[14] );
 int processData( int fd );
 
 struct Descriptors
 {
-	int fd;
+	int fd;			//descriptor
 	unsigned int sendcnt;	//statements count
-	char addr[14];
+	char addr[14];		//addres
 };
 volatile int descindex = 0;
 int findDesc( struct Descriptors* d, int fd );
@@ -108,9 +106,10 @@ int main( int argc, char* argv[] )
 	char* buf_send = malloc( MAX_SEND );
 	//[A-Z][a-z]
 	int i = 65;
-	//clocks ctructs
+	//clocks structs
 	struct timespec t1, t2;
 	char writebuf[50] = { '\0' };
+	long int flow = 0;
 
 	//signal for timer
 	struct sigaction sa1;
@@ -122,12 +121,6 @@ int main( int argc, char* argv[] )
 	struct sigaction sa2;
 	sa2.sa_handler = &saHandlerRep;
 	if( sigaction(SIGALRM, &sa2, NULL) == -1 )
-		errExit( "Sigaction error" );
-	
-	//development
-	struct sigaction sa3;
-	sa3.sa_handler = &saHandlerSock;
-	if( sigaction(SIGPIPE, &sa3, NULL) == -1 )
 		errExit( "Sigaction error" );
 	
 	//open file to save report in
@@ -146,15 +139,11 @@ int main( int argc, char* argv[] )
 		{
 			generate_data = 0;
 
-			//int count =
-			generateData( &magazine, &i );
+			flow += generateData( &magazine, &i );
 			
 			//development
 			write( 1, "@", 1 );
 		}
-		//development
-		//if( i > 68 )
-		//	break;		
 	
 		//epoll_wait
 		int nfds = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
@@ -192,9 +181,9 @@ int main( int argc, char* argv[] )
 				updateDesc( &desc, events[n].data.fd );
 				
 				//development
-				write( 1, "\nsocket closed\n", 16 );
+				//write( 1, "\nsocket closed\n", 16 );
 				//development
-				printf( "\ndesc: %d", descindex );
+				printf( "\ndesc: %d\n", descindex );
 				fflush( stdout );
 			}
 			else if( (events[n].events & EPOLLERR) || !(events[n].events & EPOLLIN) )
@@ -253,26 +242,25 @@ int main( int argc, char* argv[] )
 		for( int k = 0; k < descindex; k++ )
 		{
 			//TODO 50 -> MAX_SEND
-			if( magazine.size >= 50 )
-			{
-				//m statements - send m times
-				for( int m = desc[k].sendcnt; m > 0; m--, desc[k].sendcnt-- )	
-				{
-					//TODO 50 -> MAX_SEND
-					if( magazine.size >= 50 )
-					{
-						//TODO 50 -> MAX_SEND
-						for( int j = 0; j < 50; j++ )
-							buf_send[j] = readBuf( &magazine );
-			
-						send( desc[k].fd, buf_send, MAX_SEND, 0 );
-					}
-					else
-						break;
-				}
-			}
-			else
+			if( magazine.size < 50 )
 				break;
+			
+			//m statements - send m times
+			for( int m = desc[k].sendcnt; m > 0; m--, desc[k].sendcnt-- )	
+			{
+				//TODO 50 -> MAX_SEND
+				if( magazine.size < 50 )
+					break;
+				
+				//TODO 50 -> MAX_SEND
+				for( int j = 0; j < 50; j++ )
+					buf_send[j] = readBuf( &magazine );
+				
+				//TODO 50 -> MAX_SEND
+				flow -= 50;
+				
+				send( desc[k].fd, buf_send, MAX_SEND, 0 );
+			}
 		}
 
 		if( report_data )
@@ -299,11 +287,14 @@ int main( int argc, char* argv[] )
 			sprintf( writebuf, "Size: %d\t", magazine.size );
 			if( write( outfile, writebuf, strlen(writebuf) ) == -1 )
 				errExit( "write to file error" );
-			sprintf( writebuf, "Size2: %f%%\n", (double)(magazine.size)*100/MAX );
+			sprintf( writebuf, "Size2: %f%%\t", (double)(magazine.size)*100/MAX );
 			if( write( outfile, writebuf, strlen(writebuf) ) == -1 )
 				errExit( "write to file error" );
-
-
+			sprintf( writebuf, "Flow: %ld\n", flow );
+			if( write( outfile, writebuf, strlen(writebuf) ) == -1 )
+				errExit( "write to file error" );
+			
+			flow = 0;
 		}
 	}
 
@@ -351,6 +342,8 @@ void InputCheck( int argc, char* argv[], char** r, double* t, int* port, char* a
 	if( *t < 1 || *t > 8 )
 		errExit( "Param T must be between 1 and 8" );
 	
+
+	//addr and port
 	int flag = 0, flag2 = 0;
 	int mult = 10;
 	*port = 0;
@@ -520,12 +513,6 @@ int setnonblocking(int fd)
     return 0;
 }
 
-void saHandlerSock( int sig )
-{
-	socket_OK = 0;
-}
-
-
 int createNewConnection( int fd, int epoll_fd, struct Buffer* magazine, char addr[14] )
 {
 	struct epoll_event event;
@@ -536,8 +523,6 @@ int createNewConnection( int fd, int epoll_fd, struct Buffer* magazine, char add
 		errExit( "accept" );
 
 	strcpy(addr, inet_ntoa( B.sin_addr ));
-	
-	//socket_OK = 1;
 	
 	setnonblocking( new_fd );
 
@@ -552,12 +537,7 @@ int createNewConnection( int fd, int epoll_fd, struct Buffer* magazine, char add
 int processData( int fd )
 {
 	char buf[5];
-	////TODO check
 	ssize_t count = read(fd, buf, sizeof(buf) - 1);
-	//int cnt;
-
-	//while( (count = read(fd, buf, sizeof(buf) - 1)) > 0 )
-	//	cnt = count;
 
 	return count;
 }
