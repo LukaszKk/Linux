@@ -118,7 +118,7 @@ int main( int argc, char* argv[] )
 		if( clock_gettime(CLOCK_REALTIME, &tstart2) == -1 )
 			errExit( "clock_gettime error" );
 		
-		//TODO...	
+		//TODO... check if works
 		if( recv( sock_fd, buf, MAX_READ, MSG_DONTWAIT ) > 0 )
 		{
 			++recvcnt;

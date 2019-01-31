@@ -5,6 +5,7 @@
 #include <signal.h>
 #include <time.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -26,21 +27,24 @@ void errExit( char * mes )
 
 void InputCheck( int argc, char* argv[], char** r, double* t, int* port, char* addr );
 
-timer_t create_timer( double t );
+timer_t create_timer( double t, int sig );
+timer_t create_timer_rep( int t, int sig );
 void saHandlerGen( int sig );
+void saHandlerRep( int sig );
 volatile int generate_data = 0;
+volatile int report_data = 0;
 
 struct Buffer
 {
 	char data[MAX];
 	unsigned int head;
 	unsigned int tail;
+	unsigned int size;
 };
 int isEmpty( unsigned int head, unsigned int tail );
 int isFull( unsigned int head, unsigned int tail );
 void writeBuf( struct Buffer* buffer, char data );
 char readBuf( struct Buffer* buffer );
-unsigned int sizeBuf( unsigned int head, unsigned int tail );
 
 int generateData( struct Buffer* buffer, int* i );
 
@@ -48,13 +52,14 @@ int makeSocket( int port, char addr[16] );
 int setnonblocking(int fd);
 void saHandlerSock( int sig );
 volatile int socket_OK = 0;
-int createNewConnection( int fd, int epoll_fd, struct Buffer* magazine );
+int createNewConnection( int fd, int epoll_fd, struct Buffer* magazine, char addr[14] );
 int processData( int fd );
 
 struct Descriptors
 {
 	int fd;
 	unsigned int sendcnt;	//statements count
+	char addr[14];
 };
 volatile int descindex = 0;
 int findDesc( struct Descriptors* d, int fd );
@@ -75,7 +80,8 @@ int main( int argc, char* argv[] )
 	struct Buffer magazine;
 	magazine.head = 0;
 	magazine.tail = 0;
-
+	magazine.size = 0;
+	
 	//create socket
 	int sock_fd = makeSocket( port, addr );
 	setnonblocking(sock_fd);
@@ -102,20 +108,36 @@ int main( int argc, char* argv[] )
 	char* buf_send = malloc( MAX_SEND );
 	//[A-Z][a-z]
 	int i = 65;
-	
+	//clocks ctructs
+	struct timespec t1, t2;
+	char writebuf[50] = { '\0' };
+
 	//signal for timer
 	struct sigaction sa1;
 	sa1.sa_handler = &saHandlerGen;
 	if( sigaction(SIGCHLD, &sa1, NULL) == -1 )
 		errExit( "Sigaction error" );
 	
+	//signal for timer_report
 	struct sigaction sa2;
-	sa2.sa_handler = &saHandlerSock;
-	if( sigaction(SIGPIPE, &sa2, NULL) == -1 )
+	sa2.sa_handler = &saHandlerRep;
+	if( sigaction(SIGALRM, &sa2, NULL) == -1 )
 		errExit( "Sigaction error" );
 	
+	//development
+	struct sigaction sa3;
+	sa3.sa_handler = &saHandlerSock;
+	if( sigaction(SIGPIPE, &sa3, NULL) == -1 )
+		errExit( "Sigaction error" );
+	
+	//open file to save report in
+	int outfile = open( r, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR );
+	if( outfile == -1 )
+		errExit( "open file error" );
+
 	//create timer and set
-	timer_t timerid = create_timer( t );
+	timer_t timerid = create_timer( t, SIGCHLD );
+	timer_t timerid_report = create_timer_rep( 5, SIGALRM );
 
 	while( 1 )
 	{
@@ -132,7 +154,7 @@ int main( int argc, char* argv[] )
 		}
 		//development
 		//if( i > 68 )
-		//	break;
+		//	break;		
 	
 		//epoll_wait
 		int nfds = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
@@ -146,6 +168,26 @@ int main( int argc, char* argv[] )
 				fflush( stdout );
 
 				//client closed connection
+				//report
+				if( clock_gettime(CLOCK_REALTIME, &t1) == -1 )
+					errExit( "clock_gettime error" );
+				if( clock_gettime(CLOCK_MONOTONIC, &t2) == -1 )
+					errExit( "clock_gettime error" );
+				
+				sprintf( writebuf, "WallTime: %ld\t", t1.tv_sec*1000000000+t1.tv_nsec );
+				if( write( outfile, writebuf, strlen(writebuf) ) == -1 )
+					errExit( "write to file error" );
+				sprintf( writebuf, "Monotonic: %ld\tAddress: ", t2.tv_sec*1000000000+t2.tv_nsec );
+				if( write( outfile, writebuf, strlen(writebuf) ) == -1 )
+					errExit( "write to file error" );
+				
+				int k = findDesc( desc, events[n].data.fd );				
+	
+				if( write( outfile, desc[k].addr, strlen(desc[k].addr) ) == -1 )
+					errExit( "write to file error" );
+				if( write( outfile, "\n", 1 ) == -1 )
+					errExit( "write to file error" );
+				
 				//remove info about client
 				updateDesc( &desc, events[n].data.fd );
 				
@@ -169,8 +211,28 @@ int main( int argc, char* argv[] )
 			else if( events[n].data.fd == sock_fd )
 			{
 				//new connection
-				desc[descindex].fd = createNewConnection( sock_fd, epoll_fd, &magazine );
+				char new_addr[14] = { '\0' };
+				desc[descindex].fd = createNewConnection( sock_fd, epoll_fd, &magazine, new_addr );
+				strcpy( desc[descindex].addr, new_addr );
 				++descindex;
+				
+				//report
+				if( clock_gettime(CLOCK_REALTIME, &t1) == -1 )
+					errExit( "clock_gettime error" );
+				if( clock_gettime(CLOCK_MONOTONIC, &t2) == -1 )
+					errExit( "clock_gettime error" );
+				
+				sprintf( writebuf, "WallTime: %ld\t", t1.tv_sec*1000000000+t1.tv_nsec );
+				if( write( outfile, writebuf, strlen(writebuf) ) == -1 )
+					errExit( "write to file error" );
+				sprintf( writebuf, "Monotonic: %ld\tAddress: ", t2.tv_sec*1000000000+t2.tv_nsec );
+				if( write( outfile, writebuf, strlen(writebuf) ) == -1 )
+					errExit( "write to file error" );
+				
+				if( write( outfile, new_addr, strlen(new_addr) ) == -1 )
+					errExit( "write to file error" );
+				if( write( outfile, "\n", 1 ) == -1 )
+					errExit( "write to file error" );
 			}
 			else
 			{
@@ -191,13 +253,13 @@ int main( int argc, char* argv[] )
 		for( int k = 0; k < descindex; k++ )
 		{
 			//TODO 50 -> MAX_SEND
-			if( sizeBuf(magazine.head, magazine.tail) >= 50 )
+			if( magazine.size >= 50 )
 			{
 				//m statements - send m times
 				for( int m = desc[k].sendcnt; m > 0; m--, desc[k].sendcnt-- )	
 				{
 					//TODO 50 -> MAX_SEND
-					if( sizeBuf(magazine.head, magazine.tail) >= 50 )
+					if( magazine.size >= 50 )
 					{
 						//TODO 50 -> MAX_SEND
 						for( int j = 0; j < 50; j++ )
@@ -212,11 +274,45 @@ int main( int argc, char* argv[] )
 			else
 				break;
 		}
+
+		if( report_data )
+		{
+			report_data = 0;
+			
+			//report
+			if( clock_gettime(CLOCK_REALTIME, &t1) == -1 )
+				errExit( "clock_gettime error" );
+			if( clock_gettime(CLOCK_MONOTONIC, &t2) == -1 )
+				errExit( "clock_gettime error" );
+			
+			sprintf( writebuf, "WallTime: %ld\t", t1.tv_sec*1000000000+t1.tv_nsec );
+			if( write( outfile, writebuf, strlen(writebuf) ) == -1 )
+				errExit( "write to file error" );
+			sprintf( writebuf, "Monotonic: %ld\t", t2.tv_sec*1000000000+t2.tv_nsec );
+			if( write( outfile, writebuf, strlen(writebuf) ) == -1 )
+				errExit( "write to file error" );
+			
+			sprintf( writebuf, "Connected: %d\t", descindex );
+			if( write( outfile, writebuf, strlen(writebuf) ) == -1 )
+				errExit( "write to file error" );
+			
+			sprintf( writebuf, "Size: %d\t", magazine.size );
+			if( write( outfile, writebuf, strlen(writebuf) ) == -1 )
+				errExit( "write to file error" );
+			sprintf( writebuf, "Size2: %f%%\n", (double)(magazine.size)*100/MAX );
+			if( write( outfile, writebuf, strlen(writebuf) ) == -1 )
+				errExit( "write to file error" );
+
+
+		}
 	}
 
 	free( buf_send );
 	free( events );
 	free( desc );
+
+	if( close( outfile ) == -1 )
+		errExit( "close file error" );
 
 	if( close( sock_fd ) == -1 )
 		errExit( "close socket error" );
@@ -224,6 +320,9 @@ int main( int argc, char* argv[] )
 	if( timer_delete( timerid ) == -1 )
 		errExit( "timer_delete error" );
 
+	if( timer_delete( timerid_report ) == -1 )
+		errExit( "timer_delete error" );
+	
 	return 0;
 }
 
@@ -281,12 +380,12 @@ void InputCheck( int argc, char* argv[], char** r, double* t, int* port, char* a
 
 //===================================================================
 
-timer_t create_timer( double t )
+timer_t create_timer( double t, int sig )
 {
 	struct sigevent sev;
 	timer_t timerid;
 	sev.sigev_notify = SIGEV_SIGNAL;
-	sev.sigev_signo = SIGCHLD;
+	sev.sigev_signo = sig;
 	if( timer_create(CLOCK_REALTIME, &sev, &timerid) == -1 )
 		errExit( "timer_create error" );
 
@@ -302,11 +401,35 @@ timer_t create_timer( double t )
 	return timerid;
 }
 
+timer_t create_timer_rep( int t, int sig )
+{
+	struct sigevent sev;
+	timer_t timerid;
+	sev.sigev_notify = SIGEV_SIGNAL;
+	sev.sigev_signo = sig;
+	if( timer_create(CLOCK_REALTIME, &sev, &timerid) == -1 )
+		errExit( "timer_create error" );
+
+	struct itimerspec its;
+	its.it_value.tv_sec = t;
+	its.it_value.tv_nsec = 0;
+	its.it_interval.tv_sec = t;
+	its.it_interval.tv_nsec = 0;
+
+	if( timer_settime(timerid, 0, &its, NULL) == -1 )
+		errExit( "timer_settime error" );
+
+	return timerid;
+}
 void saHandlerGen( int sig )
 {
 	generate_data = 1;
 }
 
+void saHandlerRep( int sig )
+{
+	report_data = 1;
+}
 //===================================================================
 
 int isEmpty( unsigned int head, unsigned int tail )
@@ -328,6 +451,7 @@ void writeBuf( struct Buffer* buffer, char data )
 		buffer->head = 0;
 	else
 		buffer->head += 1;
+	buffer->size += 1;
 }
 
 char readBuf( struct Buffer* buffer )
@@ -340,12 +464,8 @@ char readBuf( struct Buffer* buffer )
 		return buffer->data[buffer->tail];
 	}
 	buffer->tail += 1;
+	buffer->size -= 1;
 	return buffer->data[buffer->tail];
-}
-
-unsigned int sizeBuf( unsigned int head, unsigned int tail )
-{
-	return tail - head;
 }
 
 //===================================================================
@@ -406,14 +526,16 @@ void saHandlerSock( int sig )
 }
 
 
-int createNewConnection( int fd, int epoll_fd, struct Buffer* magazine )
+int createNewConnection( int fd, int epoll_fd, struct Buffer* magazine, char addr[14] )
 {
 	struct epoll_event event;
-	struct sockaddr B;
+	struct sockaddr_in B;
 	socklen_t Blen = sizeof(B);
 	int new_fd = accept(fd, (struct sockaddr*)&B, &Blen);
 	if( new_fd == -1 )
 		errExit( "accept" );
+
+	strcpy(addr, inet_ntoa( B.sin_addr ));
 	
 	//socket_OK = 1;
 	
