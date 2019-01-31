@@ -131,7 +131,12 @@ int main( int argc, char* argv[] )
 		int new_fd;
 		for( int n = 0; n < nfds; n++ )
 		{
-			if( (events[n].events & EPOLLERR) || (events[n].events & EPOLLHUP) || !(events[n].events & EPOLLIN) )
+			if( events[n].events & EPOLLHUP )
+			{
+				//development
+				write( 1, "\nsocket closed\n", 16 );
+			}
+			else if( (events[n].events & EPOLLERR) || !(events[n].events & EPOLLIN) )
 			{
 				printf( "\nerrno: %d\n", errno );
 			       	fflush(stdout);	
@@ -191,17 +196,18 @@ int main( int argc, char* argv[] )
 					}*/
 				//}
 			}
-			else if( processData( events[n].data.fd ) == 4 )	
+			else if( processData( events[n].data.fd ) == 4 ) 		//sending
 			{
 				char* buf_send = malloc( MAX_SEND );
 	
+				//TODO 50 -> MAX_SEND
 				if( sizeBuf(magazine.head, magazine.tail) >= 50 )
 				{
+					//TODO 50 -> MAX_SEND
 					for( int j = 0; j < 50; j++ )
 						buf_send[j] = readBuf( &magazine );
 					
-					//send( events[n].data.fd, buf_send, MAX_SEND, 0 );
-					write( events[n].data.fd, buf_send, 51 );
+					send( events[n].data.fd, buf_send, MAX_SEND, 0 );
 				}
 			
 				free( buf_send );
@@ -429,6 +435,7 @@ int createNewConnection( int fd, int epoll_fd, struct Buffer* magazine )
 int processData( int fd )
 {
 	char buf[5];
+	//TODO check
 	ssize_t count;// = read(fd, buf, sizeof(buf) - 1);
 	int cnt;
 
