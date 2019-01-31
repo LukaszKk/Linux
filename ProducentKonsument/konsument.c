@@ -135,8 +135,8 @@ int main( int argc, char* argv[] )
 		else
 		{
 			//development
-			if( write( 1, "2", 1 ) == -1 )
-				errExit( "dev write error" );
+			//if( write( 1, "2", 1 ) == -1 )
+			//	errExit( "dev write error" );
 
 			continue;
 		}

@@ -16,6 +16,7 @@
 #define MAX_EVENTS 64
 #define MAXBUF 1024
 #define MAX_SEND 114688
+#define MAX_DESCRIPTORS 10000
 
 void errExit( char * mes )
 {
@@ -50,6 +51,15 @@ volatile int socket_OK = 0;
 int createNewConnection( int fd, int epoll_fd, struct Buffer* magazine );
 int processData( int fd );
 
+struct Descriptors
+{
+	int fd;
+	unsigned int sendcnt;	//statements count
+};
+volatile int descindex = 0;
+int findDesc( struct Descriptors* d, int fd );
+void updateDesc( struct Descriptors** d, int fd );
+
 //===================================================================
 //===================================================================
 
@@ -61,21 +71,20 @@ int main( int argc, char* argv[] )
 	char addr[16] = { '\0' };
 	InputCheck( argc, argv, &r, &t, &port, addr );
 
+	//repository
 	struct Buffer magazine;
 	magazine.head = 0;
 	magazine.tail = 0;
 
+	//create socket
 	int sock_fd = makeSocket( port, addr );
-	
 	setnonblocking(sock_fd);
 
 	int l = listen( sock_fd, 5 );
 	if( l == -1 )
 		errExit( "listen error" );
 	
-	//struct sockaddr_in B;
-	//socklen_t Blen = sizeof(struct sockaddr_in);
-	
+	//create epoll
 	int epoll_fd = epoll_create1(0);
 	if( epoll_fd == -1 )
 		errExit( "epoll create error" );
@@ -88,6 +97,13 @@ int main( int argc, char* argv[] )
 	
 	events = calloc( MAX_EVENTS, sizeof(ev) );
 
+	//saves info about consumer
+	struct Descriptors* desc = calloc( MAX_DESCRIPTORS, sizeof(struct Descriptors) );
+	char* buf_send = malloc( MAX_SEND );
+	//[A-Z][a-z]
+	int i = 65;
+	
+	//signal for timer
 	struct sigaction sa1;
 	sa1.sa_handler = &saHandlerGen;
 	if( sigaction(SIGCHLD, &sa1, NULL) == -1 )
@@ -98,9 +114,9 @@ int main( int argc, char* argv[] )
 	if( sigaction(SIGPIPE, &sa2, NULL) == -1 )
 		errExit( "Sigaction error" );
 	
+	//create timer and set
 	timer_t timerid = create_timer( t );
 
-	int i = 65;
 	while( 1 )
 	{
 		//generate data
@@ -118,107 +134,89 @@ int main( int argc, char* argv[] )
 		//if( i > 68 )
 		//	break;
 	
-		//wait on descriptor to connection
+		//epoll_wait
 		int nfds = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
-		/*if( nfds == -1 )
-		{
-			if( errno != EINTR )
-				errExit( "epoll_wait error" );
-			else
-				continue;
-		}*/
 
-		int new_fd;
 		for( int n = 0; n < nfds; n++ )
 		{
 			if( events[n].events & EPOLLHUP )
 			{
 				//development
+				printf( "\ndesc: %d", descindex );
+				fflush( stdout );
+
+				//client closed connection
+				//remove info about client
+				updateDesc( &desc, events[n].data.fd );
+				
+				//development
 				write( 1, "\nsocket closed\n", 16 );
+				//development
+				printf( "\ndesc: %d", descindex );
+				fflush( stdout );
 			}
 			else if( (events[n].events & EPOLLERR) || !(events[n].events & EPOLLIN) )
 			{
+				//development
 				printf( "\nerrno: %d\n", errno );
-			       	fflush(stdout);	
+			       	fflush(stdout);
+				
+				//errors - close connection
+				updateDesc( &desc, events[n].data.fd );
 				if( close(events[n].data.fd) == -1 )
 					errExit( "close events error" );
 			}
 			else if( events[n].data.fd == sock_fd )
 			{
-				new_fd = createNewConnection( sock_fd, epoll_fd, &magazine );
-				//int new_fd = accept( sock_fd, (struct sockaddr*)&B, &Blen );
-				//
-				//setnonblocking(new_fd);
-				//ev.events = EPOLLIN | EPOLLET;
-				//ev.data.fd = new_fd;
-				//if( epoll_ctl(epoll_fd, EPOLL_CTL_ADD, new_fd, &ev) == -1 )
-				//	errExit( "epoll_ctl_new error" );
-				
-				//socket_OK = 1;
-
-				//read 4 bytes
-				//while( 1 )
-				//{
-					//client closed connection
-					//if( !socket_OK )
-					//{
-						//development
-					//	write( 1, "sock closed", 12 );
-					//	break;
-					//}
-					
-					/*int readed = recv(new_fd, buf, 4, MSG_DONTWAIT);
-					if( readed == -1  )
-					{
-						if( errno == EINTR )
-						{
-							free( buf );
-							continue;
-						}
-						//development
-						fprintf( stdout, "\n%d\n", errno );
-						fflush( stdout );
-						write( 1, "read bad count\n", 15 );
-						break;
-					}
-					free( buf );
-
-					//development
-					write( new_fd, "helloWW\n", 9 );
-					*/
-
-					//send data
-					/*if( sizeBuf(magazine.head, magazine.tail) >= MAX_SEND )
-					{
-						for( int j = 0; j < MAX_SEND; j++ )
-							buf_send[j] = readBuf( &magazine );
-						write( new_fd, buf_send, MAX_SEND );
-					}*/
-				//}
+				//new connection
+				desc[descindex].fd = createNewConnection( sock_fd, epoll_fd, &magazine );
+				++descindex;
 			}
-			else if( processData( events[n].data.fd ) == 4 ) 		//sending
+			else
 			{
-				char* buf_send = malloc( MAX_SEND );
-	
-				//TODO 50 -> MAX_SEND
-				if( sizeBuf(magazine.head, magazine.tail) >= 50 )
+				//check if there are some statements
+				if( processData( events[n].data.fd ) == 4 )
+				{
+					int indx = findDesc( desc, events[n].data.fd );
+					if( indx == -1 )
+						continue;
+					//save statements count
+					desc[indx].sendcnt += 1;
+				}
+			}
+		}
+
+		//sending
+		//send to every which send statement
+		for( int k = 0; k < descindex; k++ )
+		{
+			//TODO 50 -> MAX_SEND
+			if( sizeBuf(magazine.head, magazine.tail) >= 50 )
+			{
+				//m statements - send m times
+				for( int m = desc[k].sendcnt; m > 0; m--, desc[k].sendcnt-- )	
 				{
 					//TODO 50 -> MAX_SEND
-					for( int j = 0; j < 50; j++ )
-						buf_send[j] = readBuf( &magazine );
-					
-					send( events[n].data.fd, buf_send, MAX_SEND, 0 );
-				}
+					if( sizeBuf(magazine.head, magazine.tail) >= 50 )
+					{
+						//TODO 50 -> MAX_SEND
+						for( int j = 0; j < 50; j++ )
+							buf_send[j] = readBuf( &magazine );
 			
-				free( buf_send );
+						send( desc[k].fd, buf_send, MAX_SEND, 0 );
+					}
+					else
+						break;
+				}
 			}
+			else
+				break;
 		}
 	}
 
-	//development
-	//write( 1, magazine.data, strlen(magazine.data) );
-
+	free( buf_send );
 	free( events );
+	free( desc );
 
 	if( close( sock_fd ) == -1 )
 		errExit( "close socket error" );
@@ -365,6 +363,7 @@ int generateData( struct Buffer* buffer, int* i )
 }
 
 //===================================================================
+
 int makeSocket( int port, char addr[16] )
 {
 	int sock_fd = socket( AF_INET, SOCK_STREAM, 0 );
@@ -412,22 +411,18 @@ int createNewConnection( int fd, int epoll_fd, struct Buffer* magazine )
 	struct epoll_event event;
 	struct sockaddr B;
 	socklen_t Blen = sizeof(B);
-	int new_fd = -1;
+	int new_fd = accept(fd, (struct sockaddr*)&B, &Blen);
+	if( new_fd == -1 )
+		errExit( "accept" );
+	
+	//socket_OK = 1;
+	
+	setnonblocking( new_fd );
 
-	while( (new_fd = accept(fd, (struct sockaddr*)&B, &Blen) ) != -1 )
-	{
-		//socket_OK = 1;
-		setnonblocking( new_fd );
-
-		event.data.fd = new_fd;
-		event.events = EPOLLIN | EPOLLET;
-		if( epoll_ctl(epoll_fd, EPOLL_CTL_ADD, new_fd, &event) == -1 )
-			errExit( "epoll_ctl" );
-		Blen = sizeof(B);
-	}
-
-	if( errno != EAGAIN && errno != EWOULDBLOCK)
-		perror("accept");
+	event.data.fd = new_fd;
+	event.events = EPOLLIN | EPOLLET;
+	if( epoll_ctl(epoll_fd, EPOLL_CTL_ADD, new_fd, &event) == -1 )
+		errExit( "epoll_ctl" );
 
 	return new_fd;
 }
@@ -435,12 +430,47 @@ int createNewConnection( int fd, int epoll_fd, struct Buffer* magazine )
 int processData( int fd )
 {
 	char buf[5];
-	//TODO check
-	ssize_t count;// = read(fd, buf, sizeof(buf) - 1);
-	int cnt;
+	////TODO check
+	ssize_t count = read(fd, buf, sizeof(buf) - 1);
+	//int cnt;
 
-	while( (count = read(fd, buf, sizeof(buf) - 1)) > 0 )
-		cnt = count;
+	//while( (count = read(fd, buf, sizeof(buf) - 1)) > 0 )
+	//	cnt = count;
 
-	return cnt;
+	return count;
+}
+
+//===================================================================
+
+int findDesc( struct Descriptors* d, int fd )
+{
+	for( int i = 0; i < descindex; i++ )
+	{
+		if( fd == d[i].fd )
+			return i;
+	}
+
+	return -1;
+}
+
+void updateDesc( struct Descriptors** d, int fd )
+{
+	struct Descriptors tmp[MAX_DESCRIPTORS];
+	for( int i = 0; i < descindex; i++ )
+	{
+		tmp[i] = *d[i];
+	}
+	memset( *d, 0, MAX_DESCRIPTORS*sizeof(struct Descriptors) );
+	
+	int n = findDesc( *d, fd );
+	int j = 0;
+	for( int i = 0; i < descindex; i++ )
+	{
+		if( i == n )
+			continue;
+		*d[j] = tmp[i];
+		++j;
+	}
+
+	--descindex;
 }
