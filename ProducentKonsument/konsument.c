@@ -67,14 +67,6 @@ int main( int argc, char* argv[] )
 	
 	int sock_fd = connectSock( port, addr );
 	
-	/*
-	int flagsock;
-	if( (flagsock = fcntl(sock_fd, F_GETFL, 0)) == -1 )
-		errExit( "fcntl error" );
-	if( fcntl( sock_fd, F_SETFL, flagsock | O_NONBLOCK ) == -1 )
-		errExit( "fcntl error" );
-	*/
-
 	struct timespec req, rem;
 	timer_t timerid;
 	if( !flagS )
@@ -90,21 +82,13 @@ int main( int argc, char* argv[] )
 
 	int tmpcnt = cnt;
 	int recvcnt = 0;
-
+	
 	while( recvcnt < cnt )
 	{
-		//development
-		//if( write( 1, "0", 1 ) == -1 )
-		//	errExit( "dev write error" );
-
-		if( (tmpcnt > 0) && (timer_pick == 1) && (write(sock_fd, "aaaa", 4) > 0) )
+		if( (tmpcnt > 0) && (timer_pick == 1) && (send(sock_fd, "aaaa", 4, 0) == 4) )
 		{
 			--tmpcnt;
-			
-			//development
-			if( write( 1, "%", 1 ) == -1 )
-				errExit( "dev write error" );
-			
+
 			if( !flagS )
 				timer_pick = 0;
 			
@@ -112,35 +96,20 @@ int main( int argc, char* argv[] )
 				errExit( "clock_gettime error" );	
 		}
 		
-		//development
-		//if( write( 1, "1", 1 ) == -1 )
-		//	errExit( "dev write error" );
-
 		if( clock_gettime(CLOCK_REALTIME, &tstart2) == -1 )
 			errExit( "clock_gettime error" );
 		
-		//TODO... check if works
-		if( recv( sock_fd, buf, MAX_READ, MSG_DONTWAIT ) > 0 )
+		if( recv( sock_fd, buf, MAX_READ, MSG_DONTWAIT ) >= MAX_READ )
 		{
 			++recvcnt;
-			
-			//development
-			if( write( 1, "#", 1 ) == -1 )
-				errExit( "dev write error" );
-			
+
 			if( clock_gettime(CLOCK_REALTIME, &tend1) == -1 )
 				errExit( "clock_gettime error" );
 					
 			report[repindex].md5sum = createMd5sum(buf);			
 		}
 		else
-		{
-			//development
-			//if( write( 1, "2", 1 ) == -1 )
-			//	errExit( "dev write error" );
-
 			continue;
-		}
 
 		if( clock_gettime(CLOCK_REALTIME, &tend2) == -1 )
 			errExit( "clock_gettime error" );
@@ -158,6 +127,9 @@ int main( int argc, char* argv[] )
 			}
 		}
 	}
+	
+	if( close(sock_fd) == -1 )
+		errExit( "close error" );
 
 	//report
 	if( clock_gettime(CLOCK_REALTIME, &tend1) == -1 )
@@ -167,22 +139,16 @@ int main( int argc, char* argv[] )
 	
 	fprintf( stderr, "\n1. Wall time: %ld[s], %ld[ns] \t Monotonic: %ld[s], %ld[ns]\n", 
 			tend1.tv_sec, tend1.tv_nsec, tend2.tv_sec, tend2.tv_nsec );
-	fflush(stdout);
+	fflush(stderr);
 	fprintf( stderr, "2. Pid: %d \t address: %s\n", getpid(), addr );
-	fflush(stdout);
+	fflush(stderr);
 	for( int i = 0 ; i < repindex; i++ )
 		fprintf( stderr, "3.\n\ta) %ld[ns]\n\tb) %ld[ns]\n\tc) md5: %s\n", report[i].delay1, report[i].delay2, report[i].md5sum );
-	fflush(stdout);
+	fflush(stderr);
 	
 	if( !flagS )
 		if( timer_delete(timerid) == -1 )
 			errExit( "timer delete error" );
-
-	if( close(sock_fd) == -1 )
-		errExit( "close error" );
-	
-	//development
-	write( 1, "\nsocket closed\n", 16 );
 
 	free( report );
 	free( buf );

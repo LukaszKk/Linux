@@ -60,7 +60,7 @@ struct Descriptors
 	char addr[14];		//addres
 };
 volatile int descindex = 0;
-int findDesc( struct Descriptors* d, int fd );
+int findDesc( struct Descriptors* d, int fd, int maxindex );
 void updateDesc( struct Descriptors** d, int fd );
 
 //===================================================================
@@ -140,9 +140,6 @@ int main( int argc, char* argv[] )
 			generate_data = 0;
 
 			flow += generateData( &magazine, &i );
-			
-			//development
-			write( 1, "@", 1 );
 		}
 	
 		//epoll_wait
@@ -152,11 +149,10 @@ int main( int argc, char* argv[] )
 		{
 			if( events[n].events & EPOLLHUP )
 			{
-				//development
-				printf( "\ndesc: %d", descindex );
-				fflush( stdout );
-
 				//client closed connection
+				if( close(events[n].data.fd) == -1 )
+					errExit( "close events error" );
+				
 				//report
 				if( clock_gettime(CLOCK_REALTIME, &t1) == -1 )
 					errExit( "clock_gettime error" );
@@ -170,7 +166,7 @@ int main( int argc, char* argv[] )
 				if( write( outfile, writebuf, strlen(writebuf) ) == -1 )
 					errExit( "write to file error" );
 				
-				int k = findDesc( desc, events[n].data.fd );				
+				int k = findDesc( desc, events[n].data.fd, descindex );				
 	
 				if( write( outfile, desc[k].addr, strlen(desc[k].addr) ) == -1 )
 					errExit( "write to file error" );
@@ -179,19 +175,9 @@ int main( int argc, char* argv[] )
 				
 				//remove info about client
 				updateDesc( &desc, events[n].data.fd );
-				
-				//development
-				//write( 1, "\nsocket closed\n", 16 );
-				//development
-				printf( "\ndesc: %d\n", descindex );
-				fflush( stdout );
 			}
 			else if( (events[n].events & EPOLLERR) || !(events[n].events & EPOLLIN) )
 			{
-				//development
-				printf( "\nerrno: %d\n", errno );
-			       	fflush(stdout);
-				
 				//errors - close connection
 				updateDesc( &desc, events[n].data.fd );
 				if( close(events[n].data.fd) == -1 )
@@ -228,9 +214,10 @@ int main( int argc, char* argv[] )
 				//check if there are some statements
 				if( processData( events[n].data.fd ) == 4 )
 				{
-					int indx = findDesc( desc, events[n].data.fd );
+					int indx = findDesc( desc, events[n].data.fd, descindex );
 					if( indx == -1 )
-						continue;
+						errExit( "findDesc error" );
+
 					//save statements count
 					desc[indx].sendcnt += 1;
 				}
@@ -241,25 +228,24 @@ int main( int argc, char* argv[] )
 		//send to every which send statement
 		for( int k = 0; k < descindex; k++ )
 		{
-			//TODO 50 -> MAX_SEND
-			if( magazine.size < 50 )
+			if( magazine.size < MAX_SEND )
 				break;
 			
 			//m statements - send m times
-			for( int m = desc[k].sendcnt; m > 0; m--, desc[k].sendcnt-- )	
+			for( int m = desc[k].sendcnt; m > 0; m-- )	
 			{
-				//TODO 50 -> MAX_SEND
-				if( magazine.size < 50 )
+				if( magazine.size < MAX_SEND )
 					break;
 				
-				//TODO 50 -> MAX_SEND
-				for( int j = 0; j < 50; j++ )
+				for( int j = 0; j < MAX_SEND; j++ )
 					buf_send[j] = readBuf( &magazine );
 				
-				//TODO 50 -> MAX_SEND
-				flow -= 50;
+				if( send( desc[k].fd, buf_send, MAX_SEND, 0 ) == -1 )
+					errExit( "sending write error" );
+			
+				flow -= MAX_SEND;
 				
-				send( desc[k].fd, buf_send, MAX_SEND, 0 );
+				desc[k].sendcnt -= 1;
 			}
 		}
 
@@ -458,6 +444,7 @@ char readBuf( struct Buffer* buffer )
 	}
 	buffer->tail += 1;
 	buffer->size -= 1;
+	
 	return buffer->data[buffer->tail];
 }
 
@@ -537,16 +524,16 @@ int createNewConnection( int fd, int epoll_fd, struct Buffer* magazine, char add
 int processData( int fd )
 {
 	char buf[5];
-	ssize_t count = read(fd, buf, sizeof(buf) - 1);
+	ssize_t count = recv(fd, buf, sizeof(buf) - 1, 0);
 
 	return count;
 }
 
 //===================================================================
 
-int findDesc( struct Descriptors* d, int fd )
+int findDesc( struct Descriptors* d, int fd, int maxindex )
 {
-	for( int i = 0; i < descindex; i++ )
+	for( int i = 0; i < maxindex; i++ )
 	{
 		if( fd == d[i].fd )
 			return i;
@@ -564,7 +551,7 @@ void updateDesc( struct Descriptors** d, int fd )
 	}
 	memset( *d, 0, MAX_DESCRIPTORS*sizeof(struct Descriptors) );
 	
-	int n = findDesc( *d, fd );
+	int n = findDesc( *d, fd, descindex );
 	int j = 0;
 	for( int i = 0; i < descindex; i++ )
 	{
