@@ -1,0 +1,38 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/ukasz/Linux/ProducentKonsument/untitled1/main.c
+stdio.h
+-
+unistd.h
+-
+string.h
+-
+stdlib.h
+-
+signal.h
+-
+time.h
+-
+sys/types.h
+-
+sys/stat.h
+-
+sys/socket.h
+-
+netinet/in.h
+-
+arpa/inet.h
+-
+sys/epoll.h
+-
+fcntl.h
+-
+errno.h
+-
+
