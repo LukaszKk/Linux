@@ -6,7 +6,7 @@
 
 #IncludeRegexTransform: 
 
-/home/ukasz/Linux/ProducentKonsument/untitled2/main.c
+/home/ukasz/Linux/ProducentKonsument/Konsument2/main.c
 stdio.h
 -
 unistd.h
@@ -32,6 +32,8 @@ poll.h
 errno.h
 -
 fcntl.h
+-
+sys/ioctl.h
 -
 openssl/md5.h
 -

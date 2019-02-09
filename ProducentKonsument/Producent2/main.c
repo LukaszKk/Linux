@@ -18,7 +18,7 @@
 //#define MAX_SEND 114688
 
 //DEVELOPMENT
-#define MAX_SEND 50
+#define MAX_SEND 5000
 
 #define MAX_DESCRIPTORS 10000
 
@@ -54,7 +54,6 @@ int generateData( struct Buffer* buffer, int* i );
 int createSocket( int port, char* addr );
 int setNonBlocking( int fd );
 int createNewConnection( int fd, int epoll_fd, struct Buffer* magazine, char addr[14] );
-ssize_t processData( int fd );
 
 struct Descriptors
 {
@@ -66,6 +65,7 @@ volatile int descIndex = 0;
 int findDesc( struct Descriptors* d, int fd, int maxIndex );
 void updateDesc( struct Descriptors** d, int fd );
 
+void statementsCheck( int fd, struct Descriptors* desc );
 void sendData( struct Buffer* magazine, long int* flow, struct Descriptors* desc );
 
 void closeConnectionReport( struct timespec* t1, struct timespec* t2, int outfile );
@@ -209,15 +209,7 @@ int main( int argc, char* argv[] )
             else
             {
                 //check if there are some statements
-                if( processData( events[n].data.fd ) == 4 )
-                {
-                    int indx = findDesc( desc, events[n].data.fd, descIndex );
-                    if( indx == -1 )
-                        errExit( "findDesc error" );
-
-                    //save statements count
-                    desc[indx].sendCount += 1;
-                }
+                statementsCheck( events[n].data.fd, desc );
             }
         }
 
@@ -480,14 +472,6 @@ int createNewConnection( int fd, int epoll_fd, struct Buffer* magazine, char add
     return new_fd;
 }
 
-ssize_t processData( int fd )
-{
-    char buf[5];
-    ssize_t count = recv(fd, buf, sizeof(buf) - 1, 0);
-
-    return count;
-}
-
 //===================================================================
 
 int findDesc( struct Descriptors* d, int fd, int maxIndex )
@@ -524,6 +508,20 @@ void updateDesc( struct Descriptors** d, int fd )
 }
 
 //===================================================================
+
+void statementsCheck( int fd, struct Descriptors* desc )
+{
+    char buf[4];
+    while( recv( fd, buf, 4, 0 ) == 4 )
+    {
+        int indx = findDesc( desc, fd, descIndex );
+        if( indx == -1 )
+            errExit( "findDesc error" );
+
+        //save statements count
+        desc[indx].sendCount += 1;
+    }
+}
 
 void sendData( struct Buffer* magazine, long int* flow, struct Descriptors* desc )
 {

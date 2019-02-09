@@ -11,13 +11,14 @@
 #include <poll.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <sys/ioctl.h>
 
 #include <openssl/md5.h>
 
 //#define MAX_READ 114688
 
 //DEVELOPMENT
-#define MAX_READ 50
+#define MAX_READ 5000
 
 
 void errExit( char* mes )
@@ -82,8 +83,11 @@ int main( int argc, char* argv[] )
 
     if( !flagS )
     {
-        timer_pick = 0;
-        timerId = createTimer( sec, nSec );
+        //timer_pick = 0;
+        //timerId = createTimer( sec, nSec );
+
+        req.tv_sec = sec;
+        req.tv_nsec = nSec;
     }
     else
     {
@@ -94,14 +98,19 @@ int main( int argc, char* argv[] )
     int tmpCount = count;
     int recvCount = 0;
 
+    int dataInSocketCount;
     while( recvCount < count )
     {
         if( (tmpCount > 0) && (timer_pick == 1) && (send(sock_fd, "aaaa", 4, 0) == 4) )
         {
+            dataInSocketCount = 0;
+            ioctl( sock_fd, FIONREAD, &dataInSocketCount );
+            printf( "\ndataInSocketCount: %d\n", dataInSocketCount );
+
             --tmpCount;
 
-            if( !flagS )
-                timer_pick = 0;
+            //if( !flagS )
+              //  timer_pick = 0;
 
             if( clock_gettime(CLOCK_REALTIME, &tStart_1) == -1 )
                 errExit( "clock_gettime error" );
@@ -114,18 +123,34 @@ int main( int argc, char* argv[] )
         if( clock_gettime(CLOCK_REALTIME, &tStart_2) == -1 )
             errExit( "clock_gettime error" );
 
-        if( recv( sock_fd, buf, MAX_READ, MSG_DONTWAIT ) >= MAX_READ )
+        //if( flagS )
+        //{
+           /* while( nanosleep( &req, &rem ) == -1 )
+            {
+                req.tv_sec = rem.tv_sec;
+                req.tv_nsec = rem.tv_nsec;
+            }*/
+        //}
+
+        dataInSocketCount = 0;
+        ioctl( sock_fd, FIONREAD, &dataInSocketCount );
+        //printf( "\ndataInSocketCount: %d\n", dataInSocketCount );
+
+        if( dataInSocketCount >= MAX_READ )
         {
-            ++recvCount;
+            if( recv( sock_fd, buf, MAX_READ, 0 ) != -1 ) //>= MAX_READ )
+            {
+                ++recvCount;
 
-            if( clock_gettime(CLOCK_REALTIME, &tEnd_1) == -1 )
-                errExit( "clock_gettime error" );
+                if( clock_gettime( CLOCK_REALTIME, &tEnd_1 ) == -1 )
+                    errExit( "clock_gettime error" );
 
-            report[repIndex].md5sum = createMd5sum(buf);
+                report[repIndex].md5sum = createMd5sum( buf );
 
-            //DEVELOPMENT
-            if( write( 1, "#", 1 ) == -1 )
-                errExit( "write error" );
+                //DEVELOPMENT
+                if( write( 1, "#", 1 ) == -1 )
+                    errExit( "write error" );
+            }
         }
         else
             continue;
@@ -136,15 +161,6 @@ int main( int argc, char* argv[] )
         report[repIndex].delay1 = (tEnd_1.tv_sec-tStart_1.tv_sec)*1000000000 + (tEnd_1.tv_nsec-tStart_1.tv_nsec);
         report[repIndex].delay2 = (tEnd_2.tv_sec-tStart_2.tv_sec)*1000000000 + (tEnd_2.tv_nsec-tStart_2.tv_nsec);
         repIndex++;
-
-        if( flagS )
-        {
-            while( nanosleep( &req, &rem ) == -1 )
-            {
-                req.tv_sec = rem.tv_sec;
-                req.tv_nsec = rem.tv_nsec;
-            }
-        }
     }
 
     if( close(sock_fd) == -1 )
@@ -157,9 +173,9 @@ int main( int argc, char* argv[] )
 
     endingReport( tEnd_1, tEnd_2, repIndex, addr, report );
 
-    if( !flagS )
-        if( timer_delete(timerId) == -1 )
-            errExit( "timer delete error" );
+    //if( !flagS )
+        //if( timer_delete(timerId) == -1 )
+      //      errExit( "timer delete error" );
 
     free( report );
     free( buf );
@@ -392,6 +408,6 @@ void endingReport( struct timespec tEnd_1, struct timespec tEnd_2, int repIndex,
     fprintf( stderr, "2. Pid: %d \t address: %s\n", getpid(), addr );
     fflush(stderr);
     for( int i = 0 ; i < repIndex; i++ )
-        fprintf( stderr, "3.\n\ta) %ld[ns]\n\tb) %ld[ns]\n\tc) md5: %s\n", report[i].delay1, report[i].delay2, report[i].md5sum );
+        fprintf( stderr, "3. Blok %d:\n\ta) %ld[ns]\n\tb) %ld[ns]\n\tc) md5: %s\n", i+1, report[i].delay1, report[i].delay2, report[i].md5sum );
     fflush(stderr);
 }

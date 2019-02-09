@@ -6,7 +6,7 @@
 
 #IncludeRegexTransform: 
 
-/home/ukasz/Linux/ProducentKonsument/untitled1/main.c
+/home/ukasz/Linux/ProducentKonsument/Producent2/main.c
 stdio.h
 -
 unistd.h
