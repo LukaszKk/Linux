@@ -18,7 +18,7 @@
 //#define MAX_SEND 114688
 
 //DEVELOPMENT
-#define MAX_SEND 5000
+#define MAX_SEND 3000
 
 #define MAX_DESCRIPTORS 10000
 
@@ -120,13 +120,17 @@ int main( int argc, char* argv[] )
 
     //signal for timer
     struct sigaction sa1;
-    sa1.sa_handler = &saHandlerGen;
+    sa1.sa_handler = saHandlerGen;
+    sigemptyset (&sa1.sa_mask);
+    sa1.sa_flags = 0;
     if( sigaction(SIGCHLD, &sa1, NULL) == -1 )
         errExit( "Sigaction error" );
 
     //signal for timerReport
     struct sigaction sa2;
-    sa2.sa_handler = &saHandlerRep;
+    sa2.sa_handler = saHandlerRep;
+    sigemptyset (&sa2.sa_mask);
+    sa2.sa_flags = 0;
     if( sigaction(SIGALRM, &sa2, NULL) == -1 )
         errExit( "Sigaction error" );
 
@@ -153,8 +157,8 @@ int main( int argc, char* argv[] )
             flow += generateData( &magazine, &i );
 
             //DEVELOPMENT
-            if( write( 1, "@", 1 ) == -1 )
-                errExit( "write error" );
+            printf( "%d, ", magazine.size );
+            fflush( stdout );
 
         }
 
@@ -520,6 +524,10 @@ void statementsCheck( int fd, struct Descriptors* desc )
 
         //save statements count
         desc[indx].sendCount += 1;
+
+        //DEVELOPMENT
+        printf( "\nstatementsCount: %d", desc[indx].sendCount );
+        fflush( stdout );
     }
 }
 
@@ -547,6 +555,10 @@ void sendData( struct Buffer* magazine, long int* flow, struct Descriptors* desc
             *flow -= MAX_SEND;
 
             desc[k].sendCount -= 1;
+
+            //DEVELOPMENT
+            printf( "\nsendCount: %d", desc[k].sendCount );
+            fflush( stdout );
         }
     }
     free( buf_send );
