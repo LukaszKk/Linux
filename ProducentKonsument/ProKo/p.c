@@ -49,7 +49,7 @@ int isFull( unsigned int head, unsigned int tail );
 void writeBuf( struct Buffer* buffer, char data );
 char readBuf( struct Buffer* buffer );
 
-int generateData( struct Buffer* buffer, int* i );
+int generateData( struct Buffer* buffer, int* i, unsigned int head, unsigned int tail );
 
 int createSocket( int port, char* addr );
 int setNonBlocking( int fd );
@@ -63,7 +63,7 @@ struct Descriptors
 };
 volatile int descIndex = 0;
 int findDesc( struct Descriptors* d, int fd, int maxIndex );
-void updateDesc( struct Descriptors** d, int fd );
+void updateDesc( struct Descriptors* d, int fd );
 
 void statementsCheck( int fd, struct Descriptors* desc );
 void sendData( struct Buffer* magazine, long int* flow, struct Descriptors* desc );
@@ -104,7 +104,7 @@ int main( int argc, char* argv[] )
 
     struct epoll_event ev, *events;
     ev.data.fd = sock_fd;
-    ev.events = EPOLLIN | EPOLLET | EPOLLRDHUP;
+    ev.events = EPOLLIN | EPOLLET;
     if( epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sock_fd, &ev) == -1 )
         errExit( "epoll_ctl error" );
 
@@ -135,11 +135,8 @@ int main( int argc, char* argv[] )
             break;
 
         //generate data
-        if( !isFull(magazine.head, magazine.tail) && generate_data )
         {
-            generate_data = 0;
-
-            flow += generateData( &magazine, &i );
+            flow += generateData( &magazine, &i, magazine.head, magazine.tail );
 
             //DEVELOPMENT
             printf( "%d, ", magazine.size );
@@ -154,34 +151,40 @@ int main( int argc, char* argv[] )
             if( (events[n].events & EPOLLHUP) || (events[n].events & EPOLLRDHUP) )
             {
                 //client closed connection
-                if( close(events[n].data.fd) == -1 )
-                    errExit( "close events error" );
 
                 //DEVELOPMENT
                 printf( "\nclient closed\n" );
                 fflush( stdout );
 
+                if( shutdown( events[n].data.fd, SHUT_RDWR ) == -1 )
+                    errExit( "shutdown events error" );
+                if( close(events[n].data.fd) == -1 )
+                    errExit( "close events error" );
+
                 //report
                 closeConnectionReport( &t1, &t2, outfile );
                 int k = findDesc( desc, events[n].data.fd, descIndex );
+                if( k == -1 )
+                    errExit( "findDesc error" );
+
                 if( write( outfile, desc[k].addr, strlen( desc[k].addr )) == -1 )
                     errExit( "write to file error" );
                 if( write( outfile, "\n", 1 ) == -1 )
                     errExit( "write to file error" );
 
                 //remove info about client
-                updateDesc( &desc, events[n].data.fd );
+                updateDesc( desc, events[n].data.fd );
             }
             else if( (events[n].events & EPOLLERR) || !(events[n].events & EPOLLIN) )
             {
-                //errors - close connection
-                updateDesc( &desc, events[n].data.fd );
-                if( close(events[n].data.fd) == -1 )
-                    errExit( "close events error" );
-
                 //DEVELOPMENT
                 printf( "\nclient closed in epollerr\n" );
                 fflush( stdout );
+
+                //errors - close connection
+                updateDesc( desc, events[n].data.fd );
+                if( close(events[n].data.fd) == -1 )
+                    errExit( "close events error" );
             }
             else if( events[n].data.fd == sock_fd )
             {
@@ -402,8 +405,13 @@ char readBuf( struct Buffer* buffer )
 
 //===================================================================
 
-int generateData( struct Buffer* buffer, int* i )
+int generateData( struct Buffer* buffer, int* i, unsigned int head, unsigned int tail )
 {
+    if( isFull(head, tail) || !generate_data )
+        return 0;
+
+    generate_data = 0;
+
     int j = 0;
     for( ; j < 640; j++ )
         writeBuf( buffer, *i );
@@ -479,33 +487,38 @@ int findDesc( struct Descriptors* d, int fd, int maxIndex )
 {
     for( int i = 0; i < maxIndex; i++ )
     {
-        if( fd == d[i].fd )
+        if( d[i].fd == fd )
             return i;
     }
 
     return -1;
 }
 
-void updateDesc( struct Descriptors** d, int fd )
+void updateDesc( struct Descriptors* d, int fd )
 {
-    struct Descriptors tmp[MAX_DESCRIPTORS];
+    struct Descriptors* tmp = calloc( MAX_DESCRIPTORS, sizeof(struct Descriptors) );
     for( int i = 0; i < descIndex; i++ )
     {
-        tmp[i] = *d[i];
+        tmp[i] = d[i];
     }
-    memset( *d, 0, MAX_DESCRIPTORS*sizeof(struct Descriptors) );
+    memset( d, 0, MAX_DESCRIPTORS*sizeof(struct Descriptors) );
 
-    int n = findDesc( *d, fd, descIndex );
+    int n = findDesc( tmp, fd, descIndex );
+    if( n == -1 )
+        errExit( "updateDesc: findDesc error" );
+
     int j = 0;
     for( int i = 0; i < descIndex; i++ )
     {
         if( i == n )
             continue;
-        *d[j] = tmp[i];
+        d[j] = tmp[i];
         ++j;
     }
 
     --descIndex;
+
+    free( tmp );
 }
 
 //===================================================================
@@ -513,12 +526,12 @@ void updateDesc( struct Descriptors** d, int fd )
 void statementsCheck( int fd, struct Descriptors* desc )
 {
     char buf[4];
+    int indx = findDesc( desc, fd, descIndex );
+    if( indx == -1 )
+        errExit( "statementsCheck: findDesc error" );
+
     while( recv( fd, buf, 4, 0 ) == 4 )
     {
-        int indx = findDesc( desc, fd, descIndex );
-        if( indx == -1 )
-            errExit( "findDesc error" );
-
         //save statements count
         desc[indx].sendCount += 1;
 
@@ -577,12 +590,12 @@ void closeConnectionReport( struct timespec* t1, struct timespec* t2, int outfil
     if( clock_gettime( CLOCK_MONOTONIC, t2 ) == -1 )
         errExit( "clock_gettime error" );
 
-    if( write( outfile, "Connection closed: ", 19 ) == -1 )
+    if( write( outfile, "Connection closed: \n", strlen("Connection closed: \n") ) == -1 )
         errExit( "write to file error" );
-    sprintf( buf, "WallTime: %ld\t", t1->tv_sec * 1000000000 + t1->tv_nsec );
+    sprintf( buf, "WallTime: %ld \t ", t1->tv_sec * 1000000000 + t1->tv_nsec );
     if( write( outfile, buf, strlen( buf )) == -1 )
         errExit( "write to file error" );
-    sprintf( buf, "Monotonic: %ld\tAddress: ", t2->tv_sec * 1000000000 + t2->tv_nsec );
+    sprintf( buf, "Monotonic: %ld \t Address: ", t2->tv_sec * 1000000000 + t2->tv_nsec );
     if( write( outfile, buf, strlen( buf )) == -1 )
         errExit( "write to file error" );
 }
@@ -595,12 +608,12 @@ void newConnectionReport( struct timespec* t1, struct timespec* t2, int outfile,
     if( clock_gettime(CLOCK_MONOTONIC, t2) == -1 )
         errExit( "clock_gettime error" );
 
-    if( write( outfile, "New connection: ", 16 ) == -1 )
+    if( write( outfile, "New connection: \t", strlen("New connection: \t") ) == -1 )
         errExit( "write to file error" );
-    sprintf( buf, "WallTime: %ld\t", t1->tv_sec*1000000000+t1->tv_nsec );
+    sprintf( buf, "WallTime: %ld \t ", t1->tv_sec*1000000000+t1->tv_nsec );
     if( write( outfile, buf, strlen(buf) ) == -1 )
         errExit( "write to file error" );
-    sprintf( buf, "Monotonic: %ld\tAddress: ", t2->tv_sec*1000000000+t2->tv_nsec );
+    sprintf( buf, "Monotonic: %ld \t Address: ", t2->tv_sec*1000000000+t2->tv_nsec );
     if( write( outfile, buf, strlen(buf) ) == -1 )
         errExit( "write to file error" );
 
@@ -618,16 +631,16 @@ void fiveSecReport( int outfile, struct timespec* t1, struct timespec* t2, struc
     if( clock_gettime(CLOCK_MONOTONIC, t2) == -1 )
         errExit( "clock_gettime error" );
 
-    if( write( outfile, "Periodic report: ", 17 ) == -1 )
+    if( write( outfile, "Periodic report: \t", strlen("Periodic report: \t") ) == -1 )
         errExit( "write to file error" );
-    sprintf( buf, "WallTime: %ld\t", t1->tv_sec*1000000000+t1->tv_nsec );
+    sprintf( buf, "WallTime: %ld \t ", t1->tv_sec*1000000000+t1->tv_nsec );
     if( write( outfile, buf, strlen(buf) ) == -1 )
         errExit( "write to file error" );
-    sprintf( buf, "Monotonic: %ld\t", t2->tv_sec*1000000000+t2->tv_nsec );
+    sprintf( buf, "Monotonic: %ld \t ", t2->tv_sec*1000000000+t2->tv_nsec );
     if( write( outfile, buf, strlen(buf) ) == -1 )
         errExit( "write to file error" );
 
-    sprintf( buf, "Connected: %d\t", descIndex );
+    sprintf( buf, "Connected: %d \t ", descIndex );
     if( write( outfile, buf, strlen(buf) ) == -1 )
         errExit( "write to file error" );
 
