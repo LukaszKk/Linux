@@ -323,46 +323,53 @@ int isFull( unsigned int head, unsigned int tail )
 
 int writeBuf( struct Buffer* buffer, char data )
 {
-    unsigned int tmpHead = buffer->head;
+    if( (buffer->size + 640) > MAX )
+        return -1;
 
-    for( int i = 0 ; i < 640; i++ )
-    {
-        if( isFull( buffer->head, buffer->tail ) )
-        {
-            buffer->head = tmpHead;
-            return -1;
-        }
-
-        if( buffer->head + 1 > MAX )
-            buffer->head = 0;
-        else
-            buffer->head += 1;
-    }
     buffer->size += 640;
 
-    char buf[640];
+    if( (buffer->head + 640) <= MAX )
+    {
+        char buf[640];
+        memset( buf, data, sizeof(buf) );
+        memcpy( &buffer->data[buffer->head], buf, sizeof(buf) );
+        buffer->head += 640;
+
+        return 0;
+    }
+
+    unsigned int n = 640;
+    n -= MAX - buffer->head;
+
+    char buf[MAX - buffer->head];
     memset( buf, data, sizeof(buf) );
-    memcpy( &buffer->data[tmpHead], buf, sizeof(buf) );
+    memcpy( &buffer->data[buffer->head], buf, sizeof(buf) );
+
+    buffer->head = n;
+
+    char buf2[n];
+    memset( buf2, data, sizeof(buf2) );
+    memcpy( &buffer->data[0], buf2, sizeof(buf2) );
 
     return 0;
 }
 
 void readBuf( struct Buffer* buffer, char* buf )
 {
-    if( isEmpty( buffer->head, buffer->tail ) )
-        return;
-
-    unsigned int tmpTail = buffer->tail;
-    for( int j = 0; j < MAX_SEND; j++ )
-    {
-        if( buffer->tail + 1 > MAX )
-            buffer->tail = 0;
-        else
-            buffer->tail += 1;
-    }
     buffer->size -= MAX_SEND;
 
-    memcpy( buf, &buffer->data[tmpTail], MAX_SEND );
+    if( (buffer->tail + MAX_SEND) <= MAX )
+    {
+        memcpy( buf, &buffer->data[buffer->tail], MAX_SEND );
+        buffer->tail += MAX_SEND;
+        return;
+    }
+
+    unsigned int n = MAX_SEND;
+    n -= MAX - buffer->tail;
+    memcpy( &buffer->data[buffer->tail], buf, MAX - buffer->tail );
+    buffer->tail = n;
+    memcpy( &buffer->data[0], &buf[MAX - buffer->tail], n );
 }
 
 //===================================================================
