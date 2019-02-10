@@ -115,11 +115,6 @@ int main( int argc, char* argv[] )
         if( ioctl( sock_fd, FIONREAD, &dataInSocketCount ) == -1 )
             errExit( "ioctl_error" );
 
-        //DEVELOPMENT
-        //printf( "tmp_count: %d\n", tmp_count );
-        //printf( "timer_pick: %d\n", timer_pick );
-        //fflush( stdout );
-
         if( dataInSocketCount >= MAX_READ )
         {
             if( clock_gettime( CLOCK_REALTIME, &tEnd_1 ) == -1 )

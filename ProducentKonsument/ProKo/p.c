@@ -46,31 +46,33 @@ struct Buffer
 };
 int isEmpty( unsigned int head, unsigned int tail );
 int isFull( unsigned int head, unsigned int tail );
-void writeBuf( struct Buffer* buffer, char data );
-char readBuf( struct Buffer* buffer );
+int writeBuf( struct Buffer* buffer, char data );
+void readBuf( struct Buffer* buffer, char* buf );
 
 int generateData( struct Buffer* buffer, int* i, unsigned int head, unsigned int tail );
 
 int createSocket( int port, char* addr );
 int setNonBlocking( int fd );
-int createNewConnection( int fd, int epoll_fd, struct Buffer* magazine, char addr[14] );
+int createEpoll( int sock_fd, struct epoll_event* ev, struct epoll_event** events );
 
 struct Descriptors
 {
     int fd;			            //descriptor
     unsigned int sendCount;	    //statements count
-    char addr[14];		        //addres
+    char addr[14];		        //address
 };
 volatile int descIndex = 0;
 int findDesc( struct Descriptors* d, int fd, int maxIndex );
 void updateDesc( struct Descriptors* d, int fd );
 
+void createNewConnection( int fd, int outfile, int epoll_fd, struct Descriptors* desc );
 void statementsCheck( int fd, struct Descriptors* desc );
 void sendData( struct Buffer* magazine, long int* flow, struct Descriptors* desc );
+void closeConnection( int fd, int outfile, struct Descriptors* desc );
 
-void closeConnectionReport( struct timespec* t1, struct timespec* t2, int outfile );
-void newConnectionReport( struct timespec* t1, struct timespec* t2, int outfile, char* new_addr );
-void fiveSecReport( int outfile, struct timespec* t1, struct timespec* t2, struct Buffer magazine, long int flow );
+void closeConnectionReport( int outfile );
+void newConnectionReport( int outfile, char* new_addr );
+void fiveSecReport( int outfile, struct Buffer magazine, long int flow );
 
 //===================================================================
 //===================================================================
@@ -91,32 +93,13 @@ int main( int argc, char* argv[] )
 
     //create socket
     int sock_fd = createSocket( port, addr );
-    setNonBlocking( sock_fd );
-
-    int l = listen( sock_fd, 5 );
-    if( l == -1 )
-        errExit( "listen error" );
 
     //create epoll
-    int epoll_fd = epoll_create1(0);
-    if( epoll_fd == -1 )
-        errExit( "epoll create error" );
-
     struct epoll_event ev, *events;
-    ev.data.fd = sock_fd;
-    ev.events = EPOLLIN | EPOLLET;
-    if( epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sock_fd, &ev) == -1 )
-        errExit( "epoll_ctl error" );
+    int epoll_fd = createEpoll( sock_fd, &ev, &events );
 
-    events = calloc( MAX_EVENTS, sizeof(ev) );
-
-    //saves info about consumer
-    struct Descriptors* desc = calloc( MAX_DESCRIPTORS, sizeof(struct Descriptors) );
-    //[A-Z][a-z]
-    int i = 65;
-    //clocks structs
-    struct timespec t1, t2;
-    //flow measure
+    struct Descriptors* desc = calloc( MAX_DESCRIPTORS, sizeof(struct Descriptors) );       //saves info about consumer
+    int i = 65;         //[A-Z][a-z]
     long int flow = 0;
 
     //open file to save report in
@@ -131,70 +114,34 @@ int main( int argc, char* argv[] )
     while( 1 )
     {
         //DEVELOPMENT
-        if( i == 'Z' )
+        if( i == 'z' )
             break;
 
         //generate data
-        {
-            flow += generateData( &magazine, &i, magazine.head, magazine.tail );
+        flow += generateData( &magazine, &i, magazine.head, magazine.tail );
 
-            //DEVELOPMENT
-            printf( "%d, ", magazine.size );
-            fflush( stdout );
-        }
+        //DEVELOPMENT
+        printf( "%d, ", magazine.size );
+        fflush( stdout );
 
         //epoll_wait
         int nfds = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
 
         for( int n = 0; n < nfds; n++ )
         {
-            if( (events[n].events & EPOLLHUP) || (events[n].events & EPOLLRDHUP) )
+            if( (events[n].events & EPOLLHUP) || (events[n].events & EPOLLRDHUP) || (events[n].events & EPOLLERR) || !(events[n].events & EPOLLIN) )
             {
                 //client closed connection
+                closeConnection( events[n].data.fd, outfile, desc );
 
                 //DEVELOPMENT
                 printf( "\nclient closed\n" );
                 fflush( stdout );
-
-                if( shutdown( events[n].data.fd, SHUT_RDWR ) == -1 )
-                    errExit( "shutdown events error" );
-                if( close(events[n].data.fd) == -1 )
-                    errExit( "close events error" );
-
-                //report
-                closeConnectionReport( &t1, &t2, outfile );
-                int k = findDesc( desc, events[n].data.fd, descIndex );
-                if( k == -1 )
-                    errExit( "findDesc error" );
-
-                if( write( outfile, desc[k].addr, strlen( desc[k].addr )) == -1 )
-                    errExit( "write to file error" );
-                if( write( outfile, "\n", 1 ) == -1 )
-                    errExit( "write to file error" );
-
-                //remove info about client
-                updateDesc( desc, events[n].data.fd );
-            }
-            else if( (events[n].events & EPOLLERR) || !(events[n].events & EPOLLIN) )
-            {
-                //DEVELOPMENT
-                printf( "\nclient closed in epollerr\n" );
-                fflush( stdout );
-
-                //errors - close connection
-                updateDesc( desc, events[n].data.fd );
-                if( close(events[n].data.fd) == -1 )
-                    errExit( "close events error" );
             }
             else if( events[n].data.fd == sock_fd )
             {
                 //new connection
-                char new_addr[14] = { '\0' };
-                desc[descIndex].fd = createNewConnection( sock_fd, epoll_fd, &magazine, new_addr );
-                strcpy( desc[descIndex].addr, new_addr );
-                ++descIndex;
-
-                newConnectionReport( &t1, &t2, outfile, new_addr );
+                createNewConnection( sock_fd, outfile, epoll_fd, desc );
             }
             else
             {
@@ -206,12 +153,10 @@ int main( int argc, char* argv[] )
         //sending
         sendData( &magazine, &flow, desc );
 
-        //socketConnectionCheck( sock_fd, desc );
-
         if( report_data )
         {
             report_data = 0;
-            fiveSecReport( outfile, &t1, &t2, magazine, flow );
+            fiveSecReport( outfile, magazine, flow );
             flow = 0;
         }
     }
@@ -376,31 +321,48 @@ int isFull( unsigned int head, unsigned int tail )
     return (head+1) == tail;
 }
 
-void writeBuf( struct Buffer* buffer, char data )
+int writeBuf( struct Buffer* buffer, char data )
 {
-    if( isFull( buffer->head, buffer->tail ) )
-        return;
-    buffer->data[buffer->head] = data;
-    if( buffer->head + 1 > MAX )
-        buffer->head = 0;
-    else
-        buffer->head += 1;
-    buffer->size += 1;
+    unsigned int tmpHead = buffer->head;
+
+    for( int i = 0 ; i < 640; i++ )
+    {
+        if( isFull( buffer->head, buffer->tail ) )
+        {
+            buffer->head = tmpHead;
+            return -1;
+        }
+
+        if( buffer->head + 1 > MAX )
+            buffer->head = 0;
+        else
+            buffer->head += 1;
+    }
+    buffer->size += 640;
+
+    char buf[640];
+    memset( buf, data, sizeof(buf) );
+    memcpy( &buffer->data[tmpHead], buf, sizeof(buf) );
+
+    return 0;
 }
 
-char readBuf( struct Buffer* buffer )
+void readBuf( struct Buffer* buffer, char* buf )
 {
     if( isEmpty( buffer->head, buffer->tail ) )
-        return '0';
-    if( buffer->tail + 1 > MAX )
-    {
-        buffer->tail = 0;
-        return buffer->data[buffer->tail];
-    }
-    buffer->tail += 1;
-    buffer->size -= 1;
+        return;
 
-    return buffer->data[buffer->tail];
+    unsigned int tmpTail = buffer->tail;
+    for( int j = 0; j < MAX_SEND; j++ )
+    {
+        if( buffer->tail + 1 > MAX )
+            buffer->tail = 0;
+        else
+            buffer->tail += 1;
+    }
+    buffer->size -= MAX_SEND;
+
+    memcpy( buf, &buffer->data[tmpTail], MAX_SEND );
 }
 
 //===================================================================
@@ -412,14 +374,14 @@ int generateData( struct Buffer* buffer, int* i, unsigned int head, unsigned int
 
     generate_data = 0;
 
-    int j = 0;
-    for( ; j < 640; j++ )
-        writeBuf( buffer, *i );
+    if( writeBuf( buffer, (char)*i ) == -1 )
+        return 0;
+
     (*i)++;
     if( *i == 122 ) *i = 64;
     else if( *i == 90 ) *i = 96;
 
-    return j;
+    return 640;
 }
 
 //===================================================================
@@ -446,6 +408,12 @@ int createSocket( int port, char* addr )
     if( b == -1 )
         errExit( "bind error" );
 
+    setNonBlocking( sock_fd );
+
+    int l = listen( sock_fd, 5 );
+    if( l == -1 )
+        errExit( "listen error" );
+
     return sock_fd;
 }
 
@@ -460,25 +428,19 @@ int setNonBlocking( int fd )
     return 0;
 }
 
-int createNewConnection( int fd, int epoll_fd, struct Buffer* magazine, char addr[14] )
+int createEpoll( int sock_fd, struct epoll_event* ev, struct epoll_event** events )
 {
-    struct epoll_event event;
-    struct sockaddr_in B;
-    socklen_t Blen = sizeof(B);
-    int new_fd = accept(fd, (struct sockaddr*)&B, &Blen);
-    if( new_fd == -1 )
-        errExit( "accept" );
+    int epoll_fd = epoll_create1(0);
+    if( epoll_fd == -1 )
+        errExit( "epoll create error" );
 
-    strcpy(addr, inet_ntoa( B.sin_addr ));
+    ev->data.fd = sock_fd;
+    ev->events = EPOLLIN | EPOLLET;
+    if( epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sock_fd, ev) == -1 )
+        errExit( "epoll_ctl error" );
+    *events = calloc( MAX_EVENTS, sizeof(*ev) );
 
-    setNonBlocking( new_fd );
-
-    event.data.fd = new_fd;
-    event.events = EPOLLIN | EPOLLET | EPOLLRDHUP;
-    if( epoll_ctl(epoll_fd, EPOLL_CTL_ADD, new_fd, &event) == -1 )
-        errExit( "epoll_ctl" );
-
-    return new_fd;
+    return epoll_fd;
 }
 
 //===================================================================
@@ -496,12 +458,12 @@ int findDesc( struct Descriptors* d, int fd, int maxIndex )
 
 void updateDesc( struct Descriptors* d, int fd )
 {
-    struct Descriptors* tmp = calloc( MAX_DESCRIPTORS, sizeof(struct Descriptors) );
+    struct Descriptors tmp[descIndex];
     for( int i = 0; i < descIndex; i++ )
     {
         tmp[i] = d[i];
     }
-    memset( d, 0, MAX_DESCRIPTORS*sizeof(struct Descriptors) );
+    memset( d, 0, descIndex*sizeof(struct Descriptors) );
 
     int n = findDesc( tmp, fd, descIndex );
     if( n == -1 )
@@ -517,103 +479,134 @@ void updateDesc( struct Descriptors* d, int fd )
     }
 
     --descIndex;
-
-    free( tmp );
 }
 
 //===================================================================
 
+void createNewConnection( int fd, int outfile, int epoll_fd, struct Descriptors* desc )
+{
+    struct epoll_event event;
+    struct sockaddr_in B;
+    socklen_t Blen = sizeof(B);
+    int new_fd = accept(fd, (struct sockaddr*)&B, &Blen);
+    if( new_fd == -1 )
+        errExit( "accept" );
+
+    strcpy( desc[descIndex].addr, inet_ntoa( B.sin_addr ) );
+
+    setNonBlocking( new_fd );
+
+    event.data.fd = new_fd;
+    event.events = EPOLLIN | EPOLLET | EPOLLRDHUP;
+    if( epoll_ctl(epoll_fd, EPOLL_CTL_ADD, new_fd, &event) == -1 )
+        errExit( "epoll_ctl" );
+
+    newConnectionReport( outfile, desc[descIndex].addr );
+
+    desc[descIndex].fd = new_fd;
+    ++descIndex;
+}
+
 void statementsCheck( int fd, struct Descriptors* desc )
 {
     char buf[4];
-    int indx = findDesc( desc, fd, descIndex );
-    if( indx == -1 )
+    int i = findDesc( desc, fd, descIndex );
+    if( i == -1 )
         errExit( "statementsCheck: findDesc error" );
 
     while( recv( fd, buf, 4, 0 ) == 4 )
     {
         //save statements count
-        desc[indx].sendCount += 1;
-
-        //DEVELOPMENT
-        printf( "\n%%, " );
-        fflush( stdout );
+        desc[i].sendCount += 1;
     }
 }
 
 void sendData( struct Buffer* magazine, long int* flow, struct Descriptors* desc )
 {
-    char* buf_send = malloc( MAX_SEND );
+    char bufSend[MAX_SEND];
     //send to every which send statement
     for( int k = 0; k < descIndex; k++ )
     {
         if( magazine->size < MAX_SEND )
-        {
-            free( buf_send );
             return;
-        }
 
         //m statements - send m times
         for( int m = desc[k].sendCount; m > 0; m-- )
         {
             if( magazine->size < MAX_SEND )
-            {
-                free( buf_send );
                 return;
-            }
 
-            for( int j = 0; j < MAX_SEND; j++ )
-                buf_send[j] = readBuf( magazine );
+            readBuf( magazine, bufSend );
 
-            if( send( desc[k].fd, buf_send, MAX_SEND, 0 ) == -1 )
+            if( send( desc[k].fd, bufSend, MAX_SEND, 0 ) == -1 )
                 errExit( "sending write error" );
 
             *flow -= MAX_SEND;
 
             desc[k].sendCount -= 1;
-
-            //DEVELOPMENT
-            printf( "\n#, " );
-            fflush( stdout );
         }
     }
-    free( buf_send );
+}
+
+void closeConnection( int fd, int outfile, struct Descriptors* desc )
+{
+    if( shutdown( fd, SHUT_RDWR ) == -1 )
+        errExit( "shutdown events error" );
+    if( close(fd) == -1 )
+        errExit( "close events error" );
+
+    //report
+    closeConnectionReport( outfile );
+
+    int k = findDesc( desc, fd, descIndex );
+    if( k == -1 )
+        errExit( "findDesc error" );
+
+    if( write( outfile, desc[k].addr, strlen( desc[k].addr )) == -1 )
+        errExit( "write to file error" );
+    if( write( outfile, "\n", 1 ) == -1 )
+        errExit( "write to file error" );
+
+    //remove info about consumer
+    updateDesc( desc, fd );
 }
 
 //===================================================================
 
-void closeConnectionReport( struct timespec* t1, struct timespec* t2, int outfile )
+void closeConnectionReport( int outfile )
 {
+    struct timespec t1, t2;
     char buf[50] = { '\0' };
-    if( clock_gettime( CLOCK_REALTIME, t1 ) == -1 )
+    if( clock_gettime( CLOCK_REALTIME, &t1 ) == -1 )
         errExit( "clock_gettime error" );
-    if( clock_gettime( CLOCK_MONOTONIC, t2 ) == -1 )
+    if( clock_gettime( CLOCK_MONOTONIC, &t2 ) == -1 )
         errExit( "clock_gettime error" );
 
-    if( write( outfile, "Connection closed: \n", strlen("Connection closed: \n") ) == -1 )
+    if( write( outfile, "Connection closed: \t", strlen("Connection closed: \t") ) == -1 )
         errExit( "write to file error" );
-    sprintf( buf, "WallTime: %ld \t ", t1->tv_sec * 1000000000 + t1->tv_nsec );
+    sprintf( buf, "WallTime: %ld \t ", t1.tv_sec * 1000000000 + t1.tv_nsec );
     if( write( outfile, buf, strlen( buf )) == -1 )
         errExit( "write to file error" );
-    sprintf( buf, "Monotonic: %ld \t Address: ", t2->tv_sec * 1000000000 + t2->tv_nsec );
+    sprintf( buf, "Monotonic: %ld \t Address: ", t2.tv_sec * 1000000000 + t2.tv_nsec );
     if( write( outfile, buf, strlen( buf )) == -1 )
         errExit( "write to file error" );
 }
 
-void newConnectionReport( struct timespec* t1, struct timespec* t2, int outfile, char* new_addr )
+void newConnectionReport( int outfile, char* new_addr )
 {
+    struct timespec t1, t2;
     char buf[50] = { '\0' };
-    if( clock_gettime(CLOCK_REALTIME, t1) == -1 )
+    if( clock_gettime(CLOCK_REALTIME, &t1) == -1 )
         errExit( "clock_gettime error" );
-    if( clock_gettime(CLOCK_MONOTONIC, t2) == -1 )
+    if( clock_gettime(CLOCK_MONOTONIC, &t2) == -1 )
         errExit( "clock_gettime error" );
 
     if( write( outfile, "New connection: \t", strlen("New connection: \t") ) == -1 )
         errExit( "write to file error" );
-    sprintf( buf, "WallTime: %ld \t ", t1->tv_sec*1000000000+t1->tv_nsec );
+    sprintf( buf, "WallTime: %ld \t ", t1.tv_sec*1000000000+t1.tv_nsec );
     if( write( outfile, buf, strlen(buf) ) == -1 )
         errExit( "write to file error" );
-    sprintf( buf, "Monotonic: %ld \t Address: ", t2->tv_sec*1000000000+t2->tv_nsec );
+    sprintf( buf, "Monotonic: %ld \t Address: ", t2.tv_sec*1000000000+t2.tv_nsec );
     if( write( outfile, buf, strlen(buf) ) == -1 )
         errExit( "write to file error" );
 
@@ -623,20 +616,21 @@ void newConnectionReport( struct timespec* t1, struct timespec* t2, int outfile,
         errExit( "write to file error" );
 }
 
-void fiveSecReport( int outfile, struct timespec* t1, struct timespec* t2, struct Buffer magazine, long int flow )
+void fiveSecReport( int outfile, struct Buffer magazine, long int flow )
 {
+    struct timespec t1, t2;
     char buf[50] = { '\0' };
-    if( clock_gettime(CLOCK_REALTIME, t1) == -1 )
+    if( clock_gettime(CLOCK_REALTIME, &t1) == -1 )
         errExit( "clock_gettime error" );
-    if( clock_gettime(CLOCK_MONOTONIC, t2) == -1 )
+    if( clock_gettime(CLOCK_MONOTONIC, &t2) == -1 )
         errExit( "clock_gettime error" );
 
     if( write( outfile, "Periodic report: \t", strlen("Periodic report: \t") ) == -1 )
         errExit( "write to file error" );
-    sprintf( buf, "WallTime: %ld \t ", t1->tv_sec*1000000000+t1->tv_nsec );
+    sprintf( buf, "WallTime: %ld \t ", t1.tv_sec*1000000000+t1.tv_nsec );
     if( write( outfile, buf, strlen(buf) ) == -1 )
         errExit( "write to file error" );
-    sprintf( buf, "Monotonic: %ld \t ", t2->tv_sec*1000000000+t2->tv_nsec );
+    sprintf( buf, "Monotonic: %ld \t ", t2.tv_sec*1000000000+t2.tv_nsec );
     if( write( outfile, buf, strlen(buf) ) == -1 )
         errExit( "write to file error" );
 
