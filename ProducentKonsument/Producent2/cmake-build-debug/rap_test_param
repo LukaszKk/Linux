@@ -1,71 +1,128 @@
-New connection: 	WallTime: 1549753919662142617 	 Monotonic: 41108730361157 	 Address: 127.0.0.1
-Periodic report: 	WallTime: 1549753921815977580 	 Monotonic: 41110884196121 	 Connected: 1 	 Size: 1480	Size2: 0.112915%	Flow: 1480
-Periodic report: 	WallTime: 1549753926815240601 	 Monotonic: 41115883459129 	 Connected: 1 	 Size: 600	Size2: 0.045776%	Flow: -880
-Periodic report: 	WallTime: 1549753931815187128 	 Monotonic: 41120883405665 	 Connected: 1 	 Size: 2720	Size2: 0.207520%	Flow: 2120
-Periodic report: 	WallTime: 1549753936815451047 	 Monotonic: 41125883669593 	 Connected: 1 	 Size: 1840	Size2: 0.140381%	Flow: -880
-Periodic report: 	WallTime: 1549753941815361690 	 Monotonic: 41130883580407 	 Connected: 1 	 Size: 960	Size2: 0.073242%	Flow: -880
-Connection closed: 	WallTime: 1549753942190413496 	 Monotonic: 41131258632114 	 Address: 127.0.0.1
-Periodic report: 	WallTime: 1549753946815318689 	 Monotonic: 41135883537370 	 Connected: 0 	 Size: 6080	Size2: 0.463867%	Flow: 5120
-Periodic report: 	WallTime: 1549753951815337803 	 Monotonic: 41140883556464 	 Connected: 0 	 Size: 11200	Size2: 0.854492%	Flow: 5120
-Periodic report: 	WallTime: 1549753956815254616 	 Monotonic: 41145883473169 	 Connected: 0 	 Size: 16320	Size2: 1.245117%	Flow: 5120
-Periodic report: 	WallTime: 1549753961815289197 	 Monotonic: 41150883507846 	 Connected: 0 	 Size: 21440	Size2: 1.635742%	Flow: 5120
-Periodic report: 	WallTime: 1549753966815883464 	 Monotonic: 41155884102119 	 Connected: 0 	 Size: 26560	Size2: 2.026367%	Flow: 5120
-Periodic report: 	WallTime: 1549753971815257721 	 Monotonic: 41160883476308 	 Connected: 0 	 Size: 31680	Size2: 2.416992%	Flow: 5120
-Periodic report: 	WallTime: 1549753976815301840 	 Monotonic: 41165883520487 	 Connected: 0 	 Size: 36800	Size2: 2.807617%	Flow: 5120
-Periodic report: 	WallTime: 1549753981815521730 	 Monotonic: 41170883740278 	 Connected: 0 	 Size: 41920	Size2: 3.198242%	Flow: 5120
-Periodic report: 	WallTime: 1549753986815704807 	 Monotonic: 41175883923397 	 Connected: 0 	 Size: 47040	Size2: 3.588867%	Flow: 5120
-Periodic report: 	WallTime: 1549753991815275651 	 Monotonic: 41180883494289 	 Connected: 0 	 Size: 52160	Size2: 3.979492%	Flow: 5120
-Periodic report: 	WallTime: 1549753996815258343 	 Monotonic: 41185883476940 	 Connected: 0 	 Size: 57280	Size2: 4.370117%	Flow: 5120
-Periodic report: 	WallTime: 1549754001815166407 	 Monotonic: 41190883384953 	 Connected: 0 	 Size: 62400	Size2: 4.760742%	Flow: 5120
-Periodic report: 	WallTime: 1549754006815190213 	 Monotonic: 41195883408778 	 Connected: 0 	 Size: 67520	Size2: 5.151367%	Flow: 5120
-Periodic report: 	WallTime: 1549754011815240094 	 Monotonic: 41200883458719 	 Connected: 0 	 Size: 72640	Size2: 5.541992%	Flow: 5120
-Periodic report: 	WallTime: 1549754016815327666 	 Monotonic: 41205883546354 	 Connected: 0 	 Size: 77760	Size2: 5.932617%	Flow: 5120
-Periodic report: 	WallTime: 1549754021815221734 	 Monotonic: 41210883440266 	 Connected: 0 	 Size: 82880	Size2: 6.323242%	Flow: 5120
-Periodic report: 	WallTime: 1549754026815285675 	 Monotonic: 41215883504411 	 Connected: 0 	 Size: 88000	Size2: 6.713867%	Flow: 5120
-Periodic report: 	WallTime: 1549754031815242653 	 Monotonic: 41220883461274 	 Connected: 0 	 Size: 93120	Size2: 7.104492%	Flow: 5120
-Periodic report: 	WallTime: 1549754036815337478 	 Monotonic: 41225883556298 	 Connected: 0 	 Size: 98240	Size2: 7.495117%	Flow: 5120
-Periodic report: 	WallTime: 1549754041815477777 	 Monotonic: 41230883696553 	 Connected: 0 	 Size: 103360	Size2: 7.885742%	Flow: 5120
-Periodic report: 	WallTime: 1549754046815334132 	 Monotonic: 41235883552828 	 Connected: 0 	 Size: 108480	Size2: 8.276367%	Flow: 5120
-Periodic report: 	WallTime: 1549754051815213803 	 Monotonic: 41240883432382 	 Connected: 0 	 Size: 113600	Size2: 8.666992%	Flow: 5120
-Periodic report: 	WallTime: 1549754056815310467 	 Monotonic: 41245883529116 	 Connected: 0 	 Size: 118720	Size2: 9.057617%	Flow: 5120
-Periodic report: 	WallTime: 1549754061815308726 	 Monotonic: 41250883527385 	 Connected: 0 	 Size: 123840	Size2: 9.448242%	Flow: 5120
-Periodic report: 	WallTime: 1549754066815288512 	 Monotonic: 41255883507197 	 Connected: 0 	 Size: 128960	Size2: 9.838867%	Flow: 5120
-Periodic report: 	WallTime: 1549754071815399292 	 Monotonic: 41260883618153 	 Connected: 0 	 Size: 134080	Size2: 10.229492%	Flow: 5120
-Periodic report: 	WallTime: 1549754076815370634 	 Monotonic: 41265883589325 	 Connected: 0 	 Size: 139200	Size2: 10.620117%	Flow: 5120
-Periodic report: 	WallTime: 1549754081815318382 	 Monotonic: 41270883537023 	 Connected: 0 	 Size: 144320	Size2: 11.010742%	Flow: 5120
-Periodic report: 	WallTime: 1549754086815171147 	 Monotonic: 41275883389679 	 Connected: 0 	 Size: 149440	Size2: 11.401367%	Flow: 5120
-Periodic report: 	WallTime: 1549754091815253702 	 Monotonic: 41280883472317 	 Connected: 0 	 Size: 154560	Size2: 11.791992%	Flow: 5120
-Periodic report: 	WallTime: 1549754096815355941 	 Monotonic: 41285883574467 	 Connected: 0 	 Size: 159680	Size2: 12.182617%	Flow: 5120
-Periodic report: 	WallTime: 1549754101815220005 	 Monotonic: 41290883438538 	 Connected: 0 	 Size: 164800	Size2: 12.573242%	Flow: 5120
-Periodic report: 	WallTime: 1549754106815243156 	 Monotonic: 41295883461849 	 Connected: 0 	 Size: 169920	Size2: 12.963867%	Flow: 5120
-Periodic report: 	WallTime: 1549754111815301480 	 Monotonic: 41300883520030 	 Connected: 0 	 Size: 175040	Size2: 13.354492%	Flow: 5120
-Periodic report: 	WallTime: 1549754116815367738 	 Monotonic: 41305883586493 	 Connected: 0 	 Size: 180160	Size2: 13.745117%	Flow: 5120
-Periodic report: 	WallTime: 1549754122440771646 	 Monotonic: 41311508990349 	 Connected: 0 	 Size: 185920	Size2: 14.184570%	Flow: 5760
-Periodic report: 	WallTime: 1549754126815201750 	 Monotonic: 41315883420298 	 Connected: 0 	 Size: 190400	Size2: 14.526367%	Flow: 4480
-Periodic report: 	WallTime: 1549754131815291456 	 Monotonic: 41320883510085 	 Connected: 0 	 Size: 195520	Size2: 14.916992%	Flow: 5120
-Periodic report: 	WallTime: 1549754136815276529 	 Monotonic: 41325883495130 	 Connected: 0 	 Size: 200640	Size2: 15.307617%	Flow: 5120
-Periodic report: 	WallTime: 1549754141815263627 	 Monotonic: 41330883482239 	 Connected: 0 	 Size: 205760	Size2: 15.698242%	Flow: 5120
-Periodic report: 	WallTime: 1549754146815180655 	 Monotonic: 41335883399235 	 Connected: 0 	 Size: 210880	Size2: 16.088867%	Flow: 5120
-Periodic report: 	WallTime: 1549754151815219209 	 Monotonic: 41340883437825 	 Connected: 0 	 Size: 216000	Size2: 16.479492%	Flow: 5120
-Periodic report: 	WallTime: 1549754156815357512 	 Monotonic: 41345883576223 	 Connected: 0 	 Size: 221120	Size2: 16.870117%	Flow: 5120
-Periodic report: 	WallTime: 1549754161815257426 	 Monotonic: 41350883476133 	 Connected: 0 	 Size: 226240	Size2: 17.260742%	Flow: 5120
-Periodic report: 	WallTime: 1549754166815396900 	 Monotonic: 41355883615655 	 Connected: 0 	 Size: 231360	Size2: 17.651367%	Flow: 5120
-Periodic report: 	WallTime: 1549754171815320174 	 Monotonic: 41360883538813 	 Connected: 0 	 Size: 236480	Size2: 18.041992%	Flow: 5120
-Periodic report: 	WallTime: 1549754176815320687 	 Monotonic: 41365883539346 	 Connected: 0 	 Size: 241600	Size2: 18.432617%	Flow: 5120
-Periodic report: 	WallTime: 1549754181815503695 	 Monotonic: 41370883722545 	 Connected: 0 	 Size: 246720	Size2: 18.823242%	Flow: 5120
-Periodic report: 	WallTime: 1549754186815496031 	 Monotonic: 41375883714811 	 Connected: 0 	 Size: 251840	Size2: 19.213867%	Flow: 5120
-Periodic report: 	WallTime: 1549754191815478356 	 Monotonic: 41380883697137 	 Connected: 0 	 Size: 256960	Size2: 19.604492%	Flow: 5120
-Periodic report: 	WallTime: 1549754196815444029 	 Monotonic: 41385883662799 	 Connected: 0 	 Size: 262080	Size2: 19.995117%	Flow: 5120
-Periodic report: 	WallTime: 1549754201815479094 	 Monotonic: 41390883697875 	 Connected: 0 	 Size: 267200	Size2: 20.385742%	Flow: 5120
-Periodic report: 	WallTime: 1549754206815300640 	 Monotonic: 41395883519299 	 Connected: 0 	 Size: 272320	Size2: 20.776367%	Flow: 5120
-Periodic report: 	WallTime: 1549754211815441332 	 Monotonic: 41400883660107 	 Connected: 0 	 Size: 277440	Size2: 21.166992%	Flow: 5120
-Periodic report: 	WallTime: 1549754216815228095 	 Monotonic: 41405883446636 	 Connected: 0 	 Size: 282560	Size2: 21.557617%	Flow: 5120
-Periodic report: 	WallTime: 1549754221815237693 	 Monotonic: 41410883456278 	 Connected: 0 	 Size: 287680	Size2: 21.948242%	Flow: 5120
-Periodic report: 	WallTime: 1549754226815445947 	 Monotonic: 41415883664728 	 Connected: 0 	 Size: 292800	Size2: 22.338867%	Flow: 5120
-Periodic report: 	WallTime: 1549754231815242719 	 Monotonic: 41420883461231 	 Connected: 0 	 Size: 297920	Size2: 22.729492%	Flow: 5120
-Periodic report: 	WallTime: 1549754236815498216 	 Monotonic: 41425883716725 	 Connected: 0 	 Size: 303040	Size2: 23.120117%	Flow: 5120
-Periodic report: 	WallTime: 1549754241815214243 	 Monotonic: 41430883432787 	 Connected: 0 	 Size: 308160	Size2: 23.510742%	Flow: 5120
-Periodic report: 	WallTime: 1549754246815321740 	 Monotonic: 41435883540396 	 Connected: 0 	 Size: 313280	Size2: 23.901367%	Flow: 5120
-Periodic report: 	WallTime: 1549754251815411777 	 Monotonic: 41440883630527 	 Connected: 0 	 Size: 318400	Size2: 24.291992%	Flow: 5120
-Periodic report: 	WallTime: 1549754256815344237 	 Monotonic: 41445883562915 	 Connected: 0 	 Size: 323520	Size2: 24.682617%	Flow: 5120
-Periodic report: 	WallTime: 1549754261815384661 	 Monotonic: 41450883603300 	 Connected: 0 	 Size: 328640	Size2: 25.073242%	Flow: 5120
+Periodic report: 	WallTime: 1549823407268909706 	 Monotonic: 16877832790472 	 Connected: 0 	 Size: 4480	Size2: 0.341797%	Flow: 4480
+Periodic report: 	WallTime: 1549823294266131823 	 Monotonic: 16764830012556 	 Connected: 0 	 Size: 9600	Size2: 0.732422%	Flow: 5120
+New connection: 	WallTime: 1549823294822220687 	 Monotonic: 16765386101431 	 Address: 127.0.0.1
+Connection closed: 	WallTime: 1549823297823074596 	 Monotonic: 16768386955321 	 Address: 127.0.0.1
+Periodic report: 	WallTime: 1549823299266171385 	 Monotonic: 16769830052094 	 Connected: 0 	 Size: 2432	Size2: 0.185547%	Flow: -7168
+Periodic report: 	WallTime: 1549823304266228789 	 Monotonic: 16774830109581 	 Connected: 0 	 Size: 7552	Size2: 0.576172%	Flow: 5120
+Periodic report: 	WallTime: 1549823309266162724 	 Monotonic: 16779830043455 	 Connected: 0 	 Size: 12672	Size2: 0.966797%	Flow: 5120
+Periodic report: 	WallTime: 1549823314266161534 	 Monotonic: 16784830042238 	 Connected: 0 	 Size: 17792	Size2: 1.357422%	Flow: 5120
+Periodic report: 	WallTime: 1549823319266144338 	 Monotonic: 16789830025047 	 Connected: 0 	 Size: 22912	Size2: 1.748047%	Flow: 5120
+New connection: 	WallTime: 1549823322991584443 	 Monotonic: 16793555465185 	 Address: 127.0.0.1
+Periodic report: 	WallTime: 1549823324266407315 	 Monotonic: 16794830288017 	 Connected: 1 	 Size: 19840	Size2: 1.513672%	Flow: -3072
+Connection closed: 	WallTime: 1549823325992540761 	 Monotonic: 16796556421750 	 Address: 127.0.0.1
+Periodic report: 	WallTime: 1549823329266161031 	 Monotonic: 16799830041724 	 Connected: 0 	 Size: 20864	Size2: 1.591797%	Flow: 1024
+Periodic report: 	WallTime: 1549823334266153852 	 Monotonic: 16804830034570 	 Connected: 0 	 Size: 25984	Size2: 1.982422%	Flow: 5120
+Periodic report: 	WallTime: 1549823339266172815 	 Monotonic: 16809830053536 	 Connected: 0 	 Size: 31104	Size2: 2.373047%	Flow: 5120
+Periodic report: 	WallTime: 1549823344266181382 	 Monotonic: 16814830062087 	 Connected: 0 	 Size: 36224	Size2: 2.763672%	Flow: 5120
+Periodic report: 	WallTime: 1549823349266137387 	 Monotonic: 16819830018095 	 Connected: 0 	 Size: 41344	Size2: 3.154297%	Flow: 5120
+Periodic report: 	WallTime: 1549823354266151583 	 Monotonic: 16824830032289 	 Connected: 0 	 Size: 46464	Size2: 3.544922%	Flow: 5120
+Periodic report: 	WallTime: 1549823359266141936 	 Monotonic: 16829830022640 	 Connected: 0 	 Size: 51584	Size2: 3.935547%	Flow: 5120
+Periodic report: 	WallTime: 1549823364266312747 	 Monotonic: 16834830193573 	 Connected: 0 	 Size: 56704	Size2: 4.326172%	Flow: 5120
+Periodic report: 	WallTime: 1549823369266191014 	 Monotonic: 16839830071784 	 Connected: 0 	 Size: 61824	Size2: 4.716797%	Flow: 5120
+Periodic report: 	WallTime: 1549823374266169793 	 Monotonic: 16844830050505 	 Connected: 0 	 Size: 66944	Size2: 5.107422%	Flow: 5120
+Periodic report: 	WallTime: 1549823379266160964 	 Monotonic: 16849830041680 	 Connected: 0 	 Size: 72064	Size2: 5.498047%	Flow: 5120
+Periodic report: 	WallTime: 1549823384266256130 	 Monotonic: 16854830136976 	 Connected: 0 	 Size: 77184	Size2: 5.888672%	Flow: 5120
+Periodic report: 	WallTime: 1549823389266162837 	 Monotonic: 16859830043660 	 Connected: 0 	 Size: 82304	Size2: 6.279297%	Flow: 5120
+Periodic report: 	WallTime: 1549823394266143333 	 Monotonic: 16864830024037 	 Connected: 0 	 Size: 87424	Size2: 6.669922%	Flow: 5120
+5011 	 Connected: 0 	 Size: 92240	Size2: 7.037354%	Flow: 5120
+Periodic report: 	WallTime: 1549822806746575801 	 Monotonic: 16277310456816 	 Connected: 0 	 Size: 97360	Size2: 7.427979%	Flow: 5120
+Periodic report: 	WallTime: 1549822811746601430 	 Monotonic: 16282310482385 	 Connected: 0 	 Size: 102480	Size2: 7.818604%	Flow: 5120
+Periodic report: 	WallTime: 1549822816746609391 	 Monotonic: 16287310490350 	 Connected: 0 	 Size: 107600	Size2: 8.209229%	Flow: 5120
+Periodic report: 	WallTime: 1549822821746547532 	 Monotonic: 16292310428486 	 Connected: 0 	 Size: 112720	Size2: 8.599854%	Flow: 5120
+Periodic report: 	WallTime: 1549822826746594707 	 Monotonic: 16297310475667 	 Connected: 0 	 Size: 117840	Size2: 8.990479%	Flow: 5120
+Periodic report: 	WallTime: 1549822831746348815 	 Monotonic: 16302310229582 	 Connected: 0 	 Size: 122960	Size2: 9.381104%	Flow: 5120
+Periodic report: 	WallTime: 1549822836746601806 	 Monotonic: 16307310482765 	 Connected: 0 	 Size: 128080	Size2: 9.771729%	Flow: 5120
+Periodic report: 	WallTime: 1549822841746603497 	 Monotonic: 16312310484451 	 Connected: 0 	 Size: 133200	Size2: 10.162354%	Flow: 5120
+Periodic report: 	WallTime: 1549822846746583931 	 Monotonic: 16317310464890 	 Connected: 0 	 Size: 138320	Size2: 10.552979%	Flow: 5120
+Periodic report: 	WallTime: 1549822851746560265 	 Monotonic: 16322310441249 	 Connected: 0 	 Size: 143440	Size2: 10.943604%	Flow: 5120
+Periodic report: 	WallTime: 1549822856746454799 	 Monotonic: 16327310335677 	 Connected: 0 	 Size: 148560	Size2: 11.334229%	Flow: 5120
+Periodic report: 	WallTime: 1549822861746586368 	 Monotonic: 16332310467322 	 Connected: 0 	 Size: 153680	Size2: 11.724854%	Flow: 5120
+Periodic report: 	WallTime: 1549822866746293309 	 Monotonic: 16337310174043 	 Connected: 0 	 Size: 158800	Size2: 12.115479%	Flow: 5120
+Periodic report: 	WallTime: 1549822871746339203 	 Monotonic: 16342310219992 	 Connected: 0 	 Size: 163920	Size2: 12.506104%	Flow: 5120
+Periodic report: 	WallTime: 1549822876746284821 	 Monotonic: 16347310165531 	 Connected: 0 	 Size: 169040	Size2: 12.896729%	Flow: 5120
+Periodic report: 	WallTime: 1549822881746421234 	 Monotonic: 16352310302076 	 Connected: 0 	 Size: 174160	Size2: 13.287354%	Flow: 5120
+Periodic report: 	WallTime: 1549822886746280245 	 Monotonic: 16357310160983 	 Connected: 0 	 Size: 179280	Size2: 13.677979%	Flow: 5120
+New connection: 	WallTime: 1549822887860149698 	 Monotonic: 16358424030437 	 Address: 127.0.0.1
+Periodic report: 	WallTime: 1549822891746302546 	 Monotonic: 16362310183318 	 Connected: 1 	 Size: 172400	Size2: 13.153076%	Flow: -6880
+Periodic report: 	WallTime: 1549822896746334041 	 Monotonic: 16367310214807 	 Connected: 1 	 Size: 162520	Size2: 12.399292%	Flow: -9880
+Connection closed: 	WallTime: 1549822897862768209 	 Monotonic: 16368426649635 	 Address: 127.0.0.1
+Periodic report: 	WallTime: 1549822901746557696 	 Monotonic: 16372310438655 	 Connected: 0 	 Size: 164640	Size2: 12.561035%	Flow: 2120
+Periodic report: 	WallTime: 1549822906746320724 	 Monotonic: 16377310201463 	 Connected: 0 	 Size: 169760	Size2: 12.951660%	Flow: 5120
+Periodic report: 	WallTime: 1549822911746481712 	 Monotonic: 16382310362597 	 Connected: 0 	 Size: 174880	Size2: 13.342285%	Flow: 5120
+Periodic report: 	WallTime: 1549822916746391632 	 Monotonic: 16387310272419 	 Connected: 0 	 Size: 180000	Size2: 13.732910%	Flow: 5120
+Periodic report: 	WallTime: 1549822921746563521 	 Monotonic: 16392310444431 	 Connected: 0 	 Size: 185120	Size2: 14.123535%	Flow: 5120
+Periodic report: 	WallTime: 1549822926746588188 	 Monotonic: 16397310469147 	 Connected: 0 	 Size: 190240	Size2: 14.514160%	Flow: 5120
+Periodic report: 	WallTime: 1549822931746508989 	 Monotonic: 16402310389909 	 Connected: 0 	 Size: 195360	Size2: 14.904785%	Flow: 5120
+New connection: 	WallTime: 1549822935877305508 	 Monotonic: 16406441186239 	 Address: 127.0.0.1
+Periodic report: 	WallTime: 1549822936746356579 	 Monotonic: 16407310237300 	 Connected: 1 	 Size: 197480	Size2: 15.066528%	Flow: 2120
+Periodic report: 	WallTime: 1549822941746475790 	 Monotonic: 16412310356657 	 Connected: 1 	 Size: 187600	Size2: 14.312744%	Flow: -9880
+Connection closed: 	WallTime: 1549822945880030314 	 Monotonic: 16416443911299 	 Address: 127.0.0.1
+Periodic report: 	WallTime: 1549822946746528145 	 Monotonic: 16417310409099 	 Connected: 0 	 Size: 180720	Size2: 13.787842%	Flow: -6880
+Periodic report: 	WallTime: 1549822951746474044 	 Monotonic: 16422310354999 	 Connected: 0 	 Size: 185840	Size2: 14.178467%	Flow: 5120
+Periodic report: 	WallTime: 1549822956746457666 	 Monotonic: 16427310338615 	 Connected: 0 	 Size: 190960	Size2: 14.569092%	Flow: 5120
+Periodic report: 	WallTime: 1549822961746388880 	 Monotonic: 16432310269605 	 Connected: 0 	 Size: 196080	Size2: 14.959717%	Flow: 5120
+Periodic report: 	WallTime: 1549822966746454402 	 Monotonic: 16437310335223 	 Connected: 0 	 Size: 201200	Size2: 15.350342%	Flow: 5120
+Periodic report: 	WallTime: 1549822971746298703 	 Monotonic: 16442310179432 	 Connected: 0 	 Size: 206320	Size2: 15.740967%	Flow: 5120
+Periodic report: 	WallTime: 1549822976746366268 	 Monotonic: 16447310247089 	 Connected: 0 	 Size: 211440	Size2: 16.131592%	Flow: 5120
+New connection: 	WallTime: 1549822980119350323 	 Monotonic: 16450683231033 	 Address: 127.0.0.1
+Periodic report: 	WallTime: 1549822981746323625 	 Monotonic: 16452310204334 	 Connected: 1 	 Size: 210560	Size2: 16.064453%	Flow: -880
+Connection closed: 	WallTime: 1549822983120532397 	 Monotonic: 16453684413436 	 Address: 127.0.0.1
+Periodic report: 	WallTime: 1549822986746591270 	 Monotonic: 16457310472219 	 Connected: 0 	 Size: 212680	Size2: 16.226196%	Flow: 2120
+Periodic report: 	WallTime: 1549822991746614381 	 Monotonic: 16462310495340 	 Connected: 0 	 Size: 217800	Size2: 16.616821%	Flow: 5120
+Periodic report: 	WallTime: 1549822996746332531 	 Monotonic: 16467310213284 	 Connected: 0 	 Size: 222920	Size2: 17.007446%	Flow: 5120
+Periodic report: 	WallTime: 1549823001746321417 	 Monotonic: 16472310202145 	 Connected: 0 	 Size: 228040	Size2: 17.398071%	Flow: 5120
+New connection: 	WallTime: 1549823002307903361 	 Monotonic: 16472871784088 	 Address: 127.0.0.1
+Connection closed: 	WallTime: 1549823005308849593 	 Monotonic: 16475872730583 	 Address: 127.0.0.1
+Periodic report: 	WallTime: 1549823006746327504 	 Monotonic: 16477310208229 	 Connected: 0 	 Size: 224160	Size2: 17.102051%	Flow: -3880
+Periodic report: 	WallTime: 1549823011746483451 	 Monotonic: 16482310364405 	 Connected: 0 	 Size: 229280	Size2: 17.492676%	Flow: 5120
+Periodic report: 	WallTime: 1549823016746323023 	 Monotonic: 16487310203724 	 Connected: 0 	 Size: 234400	Size2: 17.883301%	Flow: 5120
+Periodic report: 	WallTime: 1549823021746634245 	 Monotonic: 16492310515200 	 Connected: 0 	 Size: 239520	Size2: 18.273926%	Flow: 5120
+Periodic report: 	WallTime: 1549823026746363657 	 Monotonic: 16497310244427 	 Connected: 0 	 Size: 244640	Size2: 18.664551%	Flow: 5120
+Periodic report: 	WallTime: 1549823031746410704 	 Monotonic: 16502310291498 	 Connected: 0 	 Size: 249760	Size2: 19.055176%	Flow: 5120
+New connection: 	WallTime: 1549823034781030756 	 Monotonic: 16505344911463 	 Address: 127.0.0.1
+Periodic report: 	WallTime: 1549823036746420480 	 Monotonic: 16507310301293 	 Connected: 1 	 Size: 248880	Size2: 18.988037%	Flow: -880
+Connection closed: 	WallTime: 1549823037782365554 	 Monotonic: 16508346246564 	 Address: 127.0.0.1
+Periodic report: 	WallTime: 1549823041746502243 	 Monotonic: 16512310383096 	 Connected: 0 	 Size: 251000	Size2: 19.149780%	Flow: 2120
+nnected: 0 	 Size: 266520	Size2: 20.333862%	Flow: 5120
+New connection: 	WallTime: 1549822609943159155 	 Monotonic: 16080507039882 	 Address: 127.0.0.1
+Periodic report: 	WallTime: 1549822610167125494 	 Monotonic: 16080731006331 	 Connected: 1 	 Size: 268640	Size2: 20.495605%	Flow: 2120
+Connection closed: 	WallTime: 1549822613944412350 	 Monotonic: 16084508293379 	 Address: 127.0.0.1
+Periodic report: 	WallTime: 1549822615167361478 	 Monotonic: 16085731242427 	 Connected: 0 	 Size: 267760	Size2: 20.428467%	Flow: -880
+Periodic report: 	WallTime: 1549822620167079734 	 Monotonic: 16090730960458 	 Connected: 0 	 Size: 272880	Size2: 20.819092%	Flow: 5120
+Periodic report: 	WallTime: 1549822625167300268 	 Monotonic: 16095731181237 	 Connected: 0 	 Size: 278000	Size2: 21.209717%	Flow: 5120
+Periodic report: 	WallTime: 1549822630167078562 	 Monotonic: 16100730959300 	 Connected: 0 	 Size: 283120	Size2: 21.600342%	Flow: 5120
+New connection: 	WallTime: 1549822630451921482 	 Monotonic: 16101015802191 	 Address: 127.0.0.1
+Connection closed: 	WallTime: 1549822634452681988 	 Monotonic: 16105016562968 	 Address: 127.0.0.1
+Periodic report: 	WallTime: 1549822635167085938 	 Monotonic: 16105730966661 	 Connected: 0 	 Size: 279240	Size2: 21.304321%	Flow: -3880
+Periodic report: 	WallTime: 1549822640167163778 	 Monotonic: 16110731044572 	 Connected: 0 	 Size: 284360	Size2: 21.694946%	Flow: 5120
+New connection: 	WallTime: 1549822641895562771 	 Monotonic: 16112459443501 	 Address: 127.0.0.1
+Periodic report: 	WallTime: 1549822645167381366 	 Monotonic: 16115731262310 	 Connected: 1 	 Size: 280480	Size2: 21.398926%	Flow: -3880
+Connection closed: 	WallTime: 1549822645896803599 	 Monotonic: 16116460684348 	 Address: 127.0.0.1
+Periodic report: 	WallTime: 1549822650167130956 	 Monotonic: 16120731011691 	 Connected: 0 	 Size: 285600	Size2: 21.789551%	Flow: 5120
+Periodic report: 	WallTime: 1549822655167228339 	 Monotonic: 16125731109283 	 Connected: 0 	 Size: 290720	Size2: 22.180176%	Flow: 5120
+New connection: 	WallTime: 1549822658538591570 	 Monotonic: 16129102472265 	 Address: 127.0.0.1
+Periodic report: 	WallTime: 1549822660167071139 	 Monotonic: 16130730951938 	 Connected: 1 	 Size: 292840	Size2: 22.341919%	Flow: 2120
+Periodic report: 	WallTime: 1549822665167384038 	 Monotonic: 16135731264972 	 Connected: 1 	 Size: 297960	Size2: 22.732544%	Flow: 5120
+nnected: 0 	 Size: 490000	Size2: 37.384033%	Flow: 5120
+Periodic report: 	WallTime: 1549812749066746401 	 Monotonic: 11328187046026 	 Connected: 0 	 Size: 495120	Size2: 37.774658%	Flow: 5120
+Periodic report: 	WallTime: 1549812754066713489 	 Monotonic: 11333187013109 	 Connected: 0 	 Size: 500240	Size2: 38.165283%	Flow: 5120
+Periodic report: 	WallTime: 1549812759066752880 	 Monotonic: 11338187052510 	 Connected: 0 	 Size: 505360	Size2: 38.555908%	Flow: 5120
+Periodic report: 	WallTime: 1549812764066749431 	 Monotonic: 11343187049062 	 Connected: 0 	 Size: 510480	Size2: 38.946533%	Flow: 5120
+Periodic report: 	WallTime: 1549812769066754855 	 Monotonic: 11348187054481 	 Connected: 0 	 Size: 515600	Size2: 39.337158%	Flow: 5120
+Periodic report: 	WallTime: 1549812774066699477 	 Monotonic: 11353186999064 	 Connected: 0 	 Size: 520720	Size2: 39.727783%	Flow: 5120
+Periodic report: 	WallTime: 1549812779066746465 	 Monotonic: 11358187046091 	 Connected: 0 	 Size: 525840	Size2: 40.118408%	Flow: 5120
+Periodic report: 	WallTime: 1549812784066755662 	 Monotonic: 11363187055302 	 Connected: 0 	 Size: 530960	Size2: 40.509033%	Flow: 5120
+Periodic report: 	WallTime: 1549812789066752236 	 Monotonic: 11368187051876 	 Connected: 0 	 Size: 536080	Size2: 40.899658%	Flow: 5120
+Periodic report: 	WallTime: 1549812794066755531 	 Monotonic: 11373187055172 	 Connected: 0 	 Size: 541200	Size2: 41.290283%	Flow: 5120
+Periodic report: 	WallTime: 1549812799066742972 	 Monotonic: 11378187042564 	 Connected: 0 	 Size: 546320	Size2: 41.680908%	Flow: 5120
+Periodic report: 	WallTime: 1549812804066758213 	 Monotonic: 11383187057839 	 Connected: 0 	 Size: 551440	Size2: 42.071533%	Flow: 5120
+Periodic report: 	WallTime: 1549812809066762379 	 Monotonic: 11388187062004 	 Connected: 0 	 Size: 556560	Size2: 42.462158%	Flow: 5120
+Periodic report: 	WallTime: 1549812814066757333 	 Monotonic: 11393187056958 	 Connected: 0 	 Size: 561680	Size2: 42.852783%	Flow: 5120
+Periodic report: 	WallTime: 1549812819066753531 	 Monotonic: 11398187053171 	 Connected: 0 	 Size: 566800	Size2: 43.243408%	Flow: 5120
+Periodic report: 	WallTime: 1549812824066750252 	 Monotonic: 11403187049872 	 Connected: 0 	 Size: 571920	Size2: 43.634033%	Flow: 5120
+Periodic report: 	WallTime: 1549812829066724237 	 Monotonic: 11408187023863 	 Connected: 0 	 Size: 577040	Size2: 44.024658%	Flow: 5120
+Periodic report: 	WallTime: 1549812834066469781 	 Monotonic: 11413186769159 	 Connected: 0 	 Size: 582160	Size2: 44.415283%	Flow: 5120
+Periodic report: 	WallTime: 1549812839066508829 	 Monotonic: 11418186808223 	 Connected: 0 	 Size: 587280	Size2: 44.805908%	Flow: 5120
+Periodic report: 	WallTime: 1549812844066486268 	 Monotonic: 11423186785660 	 Connected: 0 	 Size: 592400	Size2: 45.196533%	Flow: 5120
+Periodic report: 	WallTime: 1549812849066524973 	 Monotonic: 11428186824398 	 Connected: 0 	 Size: 597520	Size2: 45.587158%	Flow: 5120
+New connection: 	WallTime: 1549812849462053574 	 Monotonic: 11428582352995 	 Address: 127.0.0.1

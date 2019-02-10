@@ -18,7 +18,7 @@
 //#define MAX_SEND 114688
 
 //DEVELOPMENT
-#define MAX_SEND 3000
+#define MAX_SEND 4096
 
 #define MAX_DESCRIPTORS 10000
 
@@ -545,8 +545,9 @@ void sendData( struct Buffer* magazine, long int* flow, struct Descriptors* desc
 
             readBuf( magazine, bufSend );
 
-            if( send( desc[k].fd, bufSend, MAX_SEND, 0 ) == -1 )
-                errExit( "sending write error" );
+            int sendedCount = 0;
+            while( sendedCount < MAX_SEND )
+                sendedCount += send( desc[k].fd, &bufSend[sendedCount], 1024, 0 );
 
             *flow -= MAX_SEND;
 

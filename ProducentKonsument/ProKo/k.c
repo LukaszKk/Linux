@@ -18,7 +18,7 @@
 //#define MAX_READ 114688
 
 //DEVELOPMENT
-#define MAX_READ 3000
+#define MAX_READ 4096
 
 
 void errExit( char* mes )
@@ -27,23 +27,21 @@ void errExit( char* mes )
     exit( EXIT_FAILURE );
 }
 
-int InputCheck( int argc, char* argv[], int* cnt, double* r, int* port, char* addr );
+int InputCheck( int argc, char* argv[], int* cnt, long int* sec, long int* nSec, int* port, char* addr );
 int randomizeL( unsigned int L1, unsigned int L2 );
 double randomizeD( double D1, double D2 );
 
 int connectSock( int port, char* addr );
 
-timer_t createTimer( long int sec, long int nSec );
-void saHandlerTim( int sig );
-volatile int timer_pick = 1;
-
 char* createMd5sum( char data[MAX_READ] );
+
+void nSleep( long int sec, long int nSec );
 
 typedef struct
 {
     long int delay1;
     long int delay2;
-    char* md5sum;
+    char md5sum[35];
 } Report;
 
 void endingReport( struct timespec tEnd_1, struct timespec tEnd_2, int repIndex, char* addr, Report* report );
@@ -53,107 +51,86 @@ void endingReport( struct timespec tEnd_1, struct timespec tEnd_2, int repIndex,
 
 int main( int argc, char* argv[] )
 {
-    int count;
-    double r;
+    int count = 0;
+    long int sec, nSec;
     int port;
     char addr[16] = { '\0' };
 
-    int flagS = InputCheck( argc, argv, &count, &r, &port, addr );
+    int flagS = InputCheck( argc, argv, &count, &sec, &nSec, &port, addr );
 
-    char* buf = malloc( MAX_READ );
-    Report* report = malloc( count*sizeof(Report) );
+    char buf[MAX_READ] = { '\0' };
+    Report report[count];
     int repIndex = 0;
-    struct timespec tStart_1, tEnd_1, tStart_2, tEnd_2;
+    struct timespec tStart_1, tEnd_1, tEnd_2;
+    int isSended = 1;
+    if( !flagS ) isSended = 0;
+    int tmp_count = count;
+    int recvCount = 0;
+    unsigned int dataInSocketCount;
 
     int sock_fd = connectSock( port, addr );
 
-    struct timespec req, rem;
-    timer_t timerId = NULL;
-
-    long int sec = (long int) r;
-    long int nSec = 0;
-    while( r >= 1 )
-        r -= 1;
-    nSec = (long int)(r * 1000000000);
-
-    if( !flagS )
-    {
-        timer_pick = 0;
-        timerId = createTimer( sec, nSec );
-    }
-    else
-    {
-        req.tv_sec = sec;
-        req.tv_nsec = nSec;
-    }
-
-    int tmp_count = count;
-    int recvCount = 0;
-
-    unsigned int dataInSocketCount;
     while( recvCount < count )
     {
-        if( (tmp_count > 0) && (timer_pick == 1) && (send(sock_fd, "aaaa", 4, 0) == 4) )
+        if( (tmp_count > 0) && (send(sock_fd, "aaaa", 4, 0) == 4) )
         {
             --tmp_count;
 
-            if( !flagS )
-                timer_pick = 0;
-
-            if( clock_gettime(CLOCK_REALTIME, &tStart_1) == -1 )
+            if( clock_gettime(CLOCK_MONOTONIC, &tStart_1) == -1 )
                 errExit( "clock_gettime error" );
+
+            if( !flagS && tmp_count )
+            {
+                isSended = 1;
+                nSleep( sec, nSec );
+            }
 
             //DEVELOPMENT
             if( write( 1, "%", 1 ) == -1 )
                 errExit( "write error" );
         }
 
-        if( clock_gettime(CLOCK_REALTIME, &tStart_2) == -1 )
-            errExit( "clock_gettime error" );
-
         dataInSocketCount = 0;
         if( ioctl( sock_fd, FIONREAD, &dataInSocketCount ) == -1 )
             errExit( "ioctl_error" );
-
         if( dataInSocketCount >= MAX_READ )
         {
-            if( clock_gettime( CLOCK_REALTIME, &tEnd_1 ) == -1 )
+            int readedCount = 0;
+            if( clock_gettime(CLOCK_MONOTONIC, &tEnd_1) == -1 )
                 errExit( "clock_gettime error" );
 
-            if( recv( sock_fd, buf, MAX_READ, 0 ) == MAX_READ )
-            {
-                ++recvCount;
+            while( readedCount < MAX_READ )
+                readedCount += recv( sock_fd, &buf[readedCount], 1024, 0 );
 
-                report[repIndex].md5sum = createMd5sum( buf );
-
-                //DEVELOPMENT
-                if( write( 1, "#", 1 ) == -1 )
-                    errExit( "write error" );
-            } else
-                continue;
-
-            if( clock_gettime(CLOCK_REALTIME, &tEnd_2) == -1 )
+            if( clock_gettime(CLOCK_MONOTONIC, &tEnd_2) == -1 )
                 errExit( "clock_gettime error" );
+
+            //DEVELOPMENT
+            if( write( 1, "#", 1 ) == -1 )
+                errExit( "write error" );
+
+            ++recvCount;
+            strcpy(report[repIndex].md5sum, createMd5sum( buf ));
+
+            if( flagS )
+                nSleep( sec, nSec );
         } else
-            continue;
-
-        if( flagS )
         {
-            while( -1 == nanosleep( &req, &rem ) )
+            if( isSended )
             {
-                req.tv_sec = rem.tv_sec;
-                req.tv_nsec = rem.tv_nsec;
+                if( !flagS ) isSended = 0;
+                nSleep( sec, nSec );
             }
+            continue;
         }
 
         report[repIndex].delay1 = (tEnd_1.tv_sec-tStart_1.tv_sec)*1000000000 + (tEnd_1.tv_nsec-tStart_1.tv_nsec);
-        report[repIndex].delay2 = (tEnd_2.tv_sec-tStart_2.tv_sec)*1000000000 + (tEnd_2.tv_nsec-tStart_2.tv_nsec);
-        repIndex++;
+        report[repIndex].delay2 = (tEnd_2.tv_sec-tEnd_1.tv_sec)*1000000000 + (tEnd_2.tv_nsec-tEnd_1.tv_nsec);
+
+        ++repIndex;
     }
 
-    if( !flagS )
-        if( timer_delete(timerId) == -1 )
-            errExit( "timer delete error" );
+    //free( buf );
 
     if( shutdown( sock_fd, SHUT_RDWR ) == -1 )
         errExit( "shutdown error" );
@@ -168,16 +145,13 @@ int main( int argc, char* argv[] )
 
     endingReport( tEnd_1, tEnd_2, repIndex, addr, report );
 
-    free( report );
-    free( buf );
-
     return 0;
 }
 
 //===================================================================
 //===================================================================
 
-int InputCheck( int argc, char* argv[], int* cnt, double* r, int* port, char* addr )
+int InputCheck( int argc, char* argv[], int* cnt, long int* sec, long int* nSec, int* port, char* addr )
 {
     if( argc < 4 || argc > 8 )
     {
@@ -186,6 +160,7 @@ int InputCheck( int argc, char* argv[], int* cnt, double* r, int* port, char* ad
     }
 
     int opt;
+    double r;
     char tmpS[50] = { '\0' };
     char tmpR[50] = { '\0' };
     char tmpCount[50] = { '\0' };
@@ -249,10 +224,10 @@ int InputCheck( int argc, char* argv[], int* cnt, double* r, int* port, char* ad
         *cnt = randomizeL( L1, L2 );
 
     //r/s
-    int flags = 0;
+    int flagS = 0;
     if( !strcmp( tmpR, "" ) )
     {
-        flags = 1;
+        flagS = 1;
         strcpy(tmpR, tmpS);
     }
 
@@ -298,11 +273,17 @@ int InputCheck( int argc, char* argv[], int* cnt, double* r, int* port, char* ad
     }
 
     if( D2 <= D1 )
-        *r = D1;
+        r = D1;
     else
-        *r = randomizeD( D1, D2 );
+        r = randomizeD( D1, D2 );
 
-    return flags;
+    *sec = (long int) r;
+    *nSec = 0;
+    while( r >= 1 )
+        r -= 1;
+    *nSec = (long int)(r * 1000000000);
+
+    return flagS;
 }
 
 int randomizeL( unsigned int L1, unsigned int L2 )
@@ -329,7 +310,7 @@ int connectSock( int port, char* addr )
 
     struct sockaddr_in A;
     A.sin_family = AF_INET;
-    A.sin_port = htons(port);
+    A.sin_port = htons((uint16_t) port );
     if( !strcmp(addr, "localhost") )
         strcpy(addr, "127.0.0.1");
     inet_aton( addr, &A.sin_addr );
@@ -344,46 +325,9 @@ int connectSock( int port, char* addr )
 
 //===================================================================
 
-timer_t createTimer( long int sec, long int nSec )
-{
-    struct sigaction sa1;
-    sa1.sa_handler = saHandlerTim;
-    sigemptyset (&sa1.sa_mask);
-    sa1.sa_flags = 0;
-    if( sigaction(SIGALRM, &sa1, NULL) == -1 )
-        errExit( "Sigaction error" );
-
-    struct sigevent sev;
-    timer_t timerId;
-    sev.sigev_notify = SIGEV_SIGNAL;
-    sev.sigev_signo = SIGALRM;
-    if( timer_create(CLOCK_REALTIME, &sev, &timerId) == -1 )
-        errExit( "timer_create error" );
-
-    struct itimerspec its;
-    its.it_value.tv_sec = sec;
-    its.it_value.tv_nsec = nSec;
-    its.it_interval.tv_sec = sec;
-    its.it_interval.tv_nsec = nSec;
-
-    if( timer_settime(timerId, 0, &its, NULL) == -1 )
-        errExit( "timer_settime error" );
-
-    return timerId;
-}
-
-
-void saHandlerTim( int sig )
-{
-    timer_pick = 1;
-}
-
-//===================================================================
-
 char* createMd5sum( char data[MAX_READ] )
 {
-    unsigned char* out = malloc(sizeof(unsigned char)*16);
-    memset( out, 0, sizeof(*out) );
+    unsigned char out[16*sizeof(unsigned char)] = { '\0' };
     MD5_CTX c;
     MD5_Init(&c);
     MD5_Update(&c, data, MAX_READ);
@@ -398,6 +342,23 @@ char* createMd5sum( char data[MAX_READ] )
 
 //===================================================================
 
+void nSleep( long int sec, long int nSec )
+{
+    struct timespec req, rem;
+    req.tv_sec = sec;
+    req.tv_nsec = nSec;
+    rem.tv_sec = 0;
+    rem.tv_nsec = 0;
+
+    while( nanosleep( &req, &rem ) == -1 )
+    {
+        req.tv_sec = rem.tv_sec;
+        req.tv_nsec = rem.tv_nsec;
+    }
+}
+
+//===================================================================
+
 void endingReport( struct timespec tEnd_1, struct timespec tEnd_2, int repIndex, char* addr, Report* report )
 {
     fprintf( stderr, "\n1. Wall time: %ld[s], %ld[ns] \t Monotonic: %ld[s], %ld[ns]\n",
@@ -405,7 +366,11 @@ void endingReport( struct timespec tEnd_1, struct timespec tEnd_2, int repIndex,
     fflush(stderr);
     fprintf( stderr, "2. Pid: %d \t address: %s\n", getpid(), addr );
     fflush(stderr);
+
     for( int i = 0 ; i < repIndex; i++ )
-        fprintf( stderr, "3. Blok %d:\n\ta) %ld[ns]\n\tb) %ld[ns]\n\tc) md5: %s\n", i+1, report[i].delay1, report[i].delay2, report[i].md5sum );
+    {
+        fprintf( stderr, "3. Blok %d:\n\ta) %ld[ns]\n\tb) %ld[ns]\n\tc) md5: %s\n", i + 1, report[i].delay1,
+                 report[i].delay2, report[i].md5sum );
+    }
     fflush(stderr);
 }
