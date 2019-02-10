@@ -14,12 +14,8 @@
 #include <errno.h>
 
 #define MAX 1310720
-#define MAX_EVENTS 64
-//#define MAX_SEND 114688
-
-//DEVELOPMENT
-#define MAX_SEND 4096
-
+#define MAX_EVENTS 100
+#define MAX_SEND 114688
 #define MAX_DESCRIPTORS 10000
 
 void errExit( char * mes )
@@ -113,16 +109,8 @@ int main( int argc, char* argv[] )
 
     while( 1 )
     {
-        //DEVELOPMENT
-        if( i == 'z' )
-            break;
-
         //generate data
         flow += generateData( &magazine, &i, magazine.head, magazine.tail );
-
-        //DEVELOPMENT
-        printf( "%d, ", magazine.size );
-        fflush( stdout );
 
         //epoll_wait
         int nfds = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
@@ -133,10 +121,6 @@ int main( int argc, char* argv[] )
             {
                 //client closed connection
                 closeConnection( events[n].data.fd, outfile, desc );
-
-                //DEVELOPMENT
-                printf( "\nclient closed\n" );
-                fflush( stdout );
             }
             else if( events[n].data.fd == sock_fd )
             {

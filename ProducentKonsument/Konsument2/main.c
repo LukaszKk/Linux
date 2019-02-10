@@ -15,11 +15,7 @@
 
 #include <openssl/md5.h>
 
-//#define MAX_READ 114688
-
-//DEVELOPMENT
-#define MAX_READ 4096
-
+#define MAX_READ 114688
 
 void errExit( char* mes )
 {
@@ -69,13 +65,11 @@ int main( int argc, char* argv[] )
     unsigned int dataInSocketCount;
 
     int sock_fd = connectSock( port, addr );
-
     while( recvCount < count )
     {
         if( (tmp_count > 0) && (send(sock_fd, "aaaa", 4, 0) == 4) )
         {
             --tmp_count;
-
             if( clock_gettime(CLOCK_MONOTONIC, &tStart_1) == -1 )
                 errExit( "clock_gettime error" );
 
@@ -84,10 +78,6 @@ int main( int argc, char* argv[] )
                 isSended = 1;
                 nSleep( sec, nSec );
             }
-
-            //DEVELOPMENT
-            if( write( 1, "%", 1 ) == -1 )
-                errExit( "write error" );
         }
 
         dataInSocketCount = 0;
@@ -104,14 +94,8 @@ int main( int argc, char* argv[] )
 
             if( clock_gettime(CLOCK_MONOTONIC, &tEnd_2) == -1 )
                 errExit( "clock_gettime error" );
-
-            //DEVELOPMENT
-            if( write( 1, "#", 1 ) == -1 )
-                errExit( "write error" );
-
             ++recvCount;
             strcpy(report[repIndex].md5sum, createMd5sum( buf ));
-
             if( flagS )
                 nSleep( sec, nSec );
         } else
@@ -126,11 +110,8 @@ int main( int argc, char* argv[] )
 
         report[repIndex].delay1 = (tEnd_1.tv_sec-tStart_1.tv_sec)*1000000000 + (tEnd_1.tv_nsec-tStart_1.tv_nsec);
         report[repIndex].delay2 = (tEnd_2.tv_sec-tEnd_1.tv_sec)*1000000000 + (tEnd_2.tv_nsec-tEnd_1.tv_nsec);
-
         ++repIndex;
     }
-
-    //free( buf );
 
     if( shutdown( sock_fd, SHUT_RDWR ) == -1 )
         errExit( "shutdown error" );

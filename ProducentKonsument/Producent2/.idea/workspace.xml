@@ -15,8 +15,7 @@
       <change beforePath="$PROJECT_DIR$/../Konsument2/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../Konsument2/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../Konsument2/cmake-build-debug/CMakeFiles/untitled1.dir/main.c.o" beforeDir="false" afterPath="$PROJECT_DIR$/../Konsument2/cmake-build-debug/CMakeFiles/untitled1.dir/main.c.o" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../Konsument2/cmake-build-debug/untitled1" beforeDir="false" afterPath="$PROJECT_DIR$/../Konsument2/cmake-build-debug/untitled1" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Konsument2/main.c" beforeDir="false" afterPath="$PROJECT_DIR$/../Konsument2/main.c" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../ProKo/k.c" beforeDir="false" afterPath="$PROJECT_DIR$/../ProKo/k.c" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../ProKo/file" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/../ProKo/p.c" beforeDir="false" afterPath="$PROJECT_DIR$/../ProKo/p.c" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/untitled1.dir/main.c.o" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/untitled1.dir/main.c.o" afterDir="false" />
@@ -54,8 +53,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/main.c">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="82">
-              <caret line="16" column="21" lean-forward="true" selection-start-line="16" selection-start-column="21" selection-end-line="16" selection-end-column="21" />
+            <state relative-caret-position="240">
+              <caret line="16" column="22" lean-forward="true" selection-start-line="16" selection-start-column="22" selection-end-line="16" selection-end-column="22" />
               <folding>
                 <element signature="e#0#18#0" expanded="true" />
               </folding>
@@ -66,8 +65,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/../ProKo/p.c">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="367">
-              <caret line="658" lean-forward="true" selection-start-line="658" selection-end-line="658" />
+            <state relative-caret-position="434">
+              <caret line="642" lean-forward="true" selection-start-line="642" selection-end-line="642" />
               <folding>
                 <element signature="e#0#18#0" expanded="true" />
               </folding>
@@ -153,12 +152,12 @@
       <workItem from="1549669557783" duration="2669000" />
       <workItem from="1549709658652" duration="33145000" />
       <workItem from="1549757296571" duration="3527000" />
-      <workItem from="1549796950934" duration="12998000" />
+      <workItem from="1549796950934" duration="15298000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="68494000" />
+    <option name="totallyTimeSpent" value="70794000" />
   </component>
   <component name="TodoView">
     <todo-panel id="selected-file">
@@ -178,7 +177,7 @@
       <window_info id="Favorites" order="2" sideWeight="0.50209206" side_tool="true" weight="0.26656026" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" weight="0.3289256" />
-      <window_info active="true" anchor="bottom" id="Run" order="2" visible="true" weight="0.20991735" />
+      <window_info anchor="bottom" id="Run" order="2" weight="0.9504132" />
       <window_info anchor="bottom" id="Debug" order="3" weight="0.6" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
@@ -216,8 +215,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/../ProKo/p.c">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="367">
-          <caret line="658" lean-forward="true" selection-start-line="658" selection-end-line="658" />
+        <state relative-caret-position="434">
+          <caret line="642" lean-forward="true" selection-start-line="642" selection-end-line="642" />
           <folding>
             <element signature="e#0#18#0" expanded="true" />
           </folding>
@@ -226,8 +225,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/main.c">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="82">
-          <caret line="16" column="21" lean-forward="true" selection-start-line="16" selection-start-column="21" selection-end-line="16" selection-end-column="21" />
+        <state relative-caret-position="240">
+          <caret line="16" column="22" lean-forward="true" selection-start-line="16" selection-start-column="22" selection-end-line="16" selection-end-column="22" />
           <folding>
             <element signature="e#0#18#0" expanded="true" />
           </folding>
