@@ -1,1 +1,0 @@
-/usr/bin/cc  -Wall -g   CMakeFiles/untitled1.dir/main.c.o  -o untitled1 -lrt -lcrypto 
